@@ -17,9 +17,9 @@ import errno
 from getch import pause_exit
 from win_wildcard import expand_windows_wildcard
 
-script_version = '1.0'
+script_version = '0.9b'
 script_authors = 'Jason Ramboz'
-script_repo = 'http://tktktk'
+script_repo = 'https://github.com/jramboz/py2saber'
 
 # Custom Exceptions
 class NoAnimaSaberException(Exception):
