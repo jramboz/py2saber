@@ -289,14 +289,14 @@ def write_files_to_saber(port: str, files: list[str]) -> None:
                     ser.write(cmd)
                     log.debug(f'Beginning byte stream for file {fname}')
                     byte = binary_file.read(1)
-                    print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}')
+                    print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
                         ser.write(byte)
                         bytes_sent += 1
                         byte = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
-                            print(f'\033[1A\x1b[2K{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}')
-                    print(f'\033[1A\x1b[2K{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}')
+                            print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
+                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}     ')
                 
                 response = ser.readline()
                 log.debug(f'Received response: {response}')
