@@ -25,9 +25,11 @@ import errno
 from getch import pause_exit
 from win_wildcard import expand_windows_wildcard
 
-script_version = '0.9b'
+script_version = '0.10b'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
+
+
 
 # Custom Exceptions
 class NoAnimaSaberException(Exception):
@@ -42,249 +44,289 @@ class NotEnoughFreeSpaceException(Exception):
 class AnimaFileWriteException(Exception):
     pass
 
-# Serial port communication settings
-serial_settings = {'baudrate': 115200, 
-                   'bytesize': 8, 
-                   'parity': 'N', 
-                   'stopbits': 1, 
-                   'xonxoff': False, 
-                   'dsrdtr': False, 
-                   'rtscts': False, 
-                   'timeout': 3, 
-                   'write_timeout': None, 
-                   'inter_byte_timeout': None}
+class InvalidSaberResponseException(Exception):
+    pass
 
-log = logging.Logger('py2saber')
-#log.setLevel(logging.DEBUG)
-#stream = logging.StreamHandler(sys.stdout)
-#stream.setLevel(logging.DEBUG)
-#stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
-#log.addHandler(stream)
+class Saber_Controller:
+    '''Controls communication with an OpenCore-based lightsaber.'''
+    # Serial port communication settings
+    _SERIAL_SETTINGS = {'baudrate': 115200, 
+                       'bytesize': 8, 
+                       'parity': 'N', 
+                       'stopbits': 1, 
+                       'xonxoff': False, 
+                       'dsrdtr': False, 
+                       'rtscts': False, 
+                       'timeout': 3, 
+                       'write_timeout': None, 
+                       'inter_byte_timeout': None}
 
-def get_ports() -> list[str]:
-    '''Returns available serial ports as list of strings.'''
-    serial_ports = []
-    match_string = r''
+    def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
+        self.log = logging.getLogger('Saber_Controller')
+        self.log.setLevel(loglevel)
+        #stream = logging.StreamHandler(sys.stdout)
+        #stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
+        #stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        #self.log.addHandler(stream)
+        self.log.info('Initializing saber connection.')
+        self.gui = gui # Flag for whether to output signals for PySide GUI
+        self.port = port
 
-    log.info('Searching for available serial ports.')
-    port_list = lp.comports()
-    log.debug(f'Found {len(port_list)} ports before filtering: {port_list}')
-
-    # Filter down list of ports depending on OS
-    system = platform.system()
-    logging.info(f'Detected OS: {system}')
-    if system == 'Darwin':
-        match_string = r'^/dev/cu.usb*'
-    elif system == 'Windows':
-        match_string = r'^COM\d+'
-    elif system == 'Linux':
-        match_string = r'^/dev/ttyS*'
-    else: # You're on your own!
-        match_string = r'*'
-    
-    for port in port_list:
-        if re.match(match_string, port.device):
-            serial_ports.append(port.device)
-    
-    log.info(f'Found {len(serial_ports)} port(s).')
-    log.debug(f'Found ports: {serial_ports}')
-    return serial_ports
-
-def port_is_anima(port: str) -> bool:
-    '''Checks to see if the device attached to port is a Polaris Anima EVO.
-    Returns True if an Anima is found, False otherwise.
-    
-    NB: This method will not throw serial exceptions. Any exceptions will cause result of False.'''
-
-    try:
-        log.info(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
-        ser = serial.Serial(port)
-        ser.apply_settings(serial_settings)
-        
-        # Checking logic (based on Nuntis' script):
-        # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
-        # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
-        # Send 'WR?'. Return false if empty or response doesn't sart with 'OK, Write'.
-        # Otherwise return true.
-        log.debug('Sending command: V?')
-        ser.write(b'V?\n')
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if not response or response.startswith(b'V=1.'):
-            ser.close()
-            log.info(f'No Polaris Anima EVO found on port {port}')
-            return False
-        
-        log.debug('Sending command: S?')
-        ser.write(b'S?\n')
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if not response or not response.startswith(b'S='):
-            ser.close()
-            log.info(f'No Polaris Anima EVO found on port {port}')
-            return False
-        
-        log.debug('Sending command: WR?')
-        ser.write(b'WR?\n')
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if not response or not response.startswith(b'OK, Write'):
-            ser.close()
-            log.info(f'No Polaris Anima EVO found on port {port}')
-            return False
-
-        ser.close()
-        log.info(f'Found Polaris Anima EVO on port {port}')
-        return True
-    except:
-        log.info(f'No Polaris Anima EVO found on port {port}')
-        return False
-
-def get_saber_info(port: str) -> dict:
-    '''Retrieve firmware version and serial number from saber. Returns a dict with keys 'version' and 'serial'.'''
-    if port_is_anima(port):
-        log.info('Retrieving firmware version and serial number from saber.')
-        info = {}
-        ser = serial.Serial(port)
-        ser.apply_settings(serial_settings)
-
-        # get firmware version
-        log.debug('Sending command: V?')
-        ser.write(b'V?\n')
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if not response or not response.startswith(b'V='):
-            ser.close()
-            log.error('Anima not ready.')
-            raise AnimaNotReadyException
+        # If a specific port is supplied, check that it is an OpenCore saber
+        if self.port: 
+            if not Saber_Controller.port_is_anima(port):
+                self.log.error(f'No OpenCore saber found on port {port}')
+                raise NoAnimaSaberException
+        # Otherwise, use the first port found with an OpenCore saber connected
         else:
-            info['version'] = response.decode().strip()[2:]
+            ports = Saber_Controller.get_ports()
+            for p in ports:
+                if Saber_Controller.port_is_anima(p):
+                    self.port = p
+                    break
 
-        # get serial number
-        log.debug('Sending command: S?')
-        ser.write(b'S?\n')
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if not response or not response.startswith(b'S='):
-            ser.close()
-            log.error('Anima not ready.')
-            raise AnimaNotReadyException
-        else:
-            info['serial'] = response.decode().strip()[2:]
+        if not self.port:
+            self.log.error('No OpenCore sabers found.')
+            raise NoAnimaSaberException
         
-        log.info(f'Found saber info: {info}')
-        return info
-    else:
-        log.error('No Anima saber found.')
-        raise NoAnimaSaberException
+        # Initialize the serial connection
+        self._ser = serial.Serial(self.port)
+        self._ser.apply_settings(self._SERIAL_SETTINGS)
 
-def list_files_on_saber_as_bytes(port: str) -> bytes:
-    '''Returns the raw byte string reported by the saber LIST? command.'''
-    file_list = b''
-    log.info(f'Retrieving file list from saber on port {port}')
+    def __del__(self):
+        try: # Exception handling is necessary for the case that no saber was found during initialization. In this case, self._ser never gets created
+            self._ser.close()
+        except Exception:
+            pass
 
-    if port_is_anima(port):
-        ser = serial.Serial(port)
-        ser.apply_settings(serial_settings)
-        log.debug('Sending command: LIST?')
-        ser.write(b'LIST?\n')
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        while response:
-            file_list += response
+    @staticmethod
+    def get_ports() -> list[str]:
+        '''Returns available serial ports as list of strings.'''
+        serial_ports = []
+        match_string = r''
+
+        _log = logging.getLogger('Saber_Controller')
+
+        _log.info('Searching for available serial ports.')
+        port_list = lp.comports()
+        _log.debug(f'Found {len(port_list)} ports before filtering: {port_list}')
+
+        # Filter down list of ports depending on OS
+        system = platform.system()
+        _log.info(f'Detected OS: {system}')
+        if system == 'Darwin':
+            match_string = r'^/dev/cu.usb*'
+        elif system == 'Windows':
+            match_string = r'^COM\d+'
+        elif system == 'Linux':
+            match_string = r'^/dev/ttyS*'
+        else: # You're on your own!
+            match_string = r'*'
+        
+        for port in port_list:
+            if re.match(match_string, port.device):
+                serial_ports.append(port.device)
+        
+        _log.info(f'Found {len(serial_ports)} port(s).')
+        _log.debug(f'Found ports: {serial_ports}')
+        return serial_ports
+
+    @staticmethod
+    def port_is_anima(port: str) -> bool:
+        '''Checks to see if the device attached to port is a Polaris Anima EVO.
+        Returns True if an Anima is found, False otherwise.
+        
+        NB: This method will not throw exceptions. Any exceptions will cause result of False.'''
+
+        try:
+            log = logging.getLogger('Saber_Controller')
+
+            log.info(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
+            ser = serial.Serial(port)
+            ser.apply_settings({'baudrate': 115200, 
+                           'bytesize': 8, 
+                           'parity': 'N', 
+                           'stopbits': 1, 
+                           'xonxoff': False, 
+                           'dsrdtr': False, 
+                           'rtscts': False, 
+                           'timeout': 3, 
+                           'write_timeout': None, 
+                           'inter_byte_timeout': None})
+            
+            # Checking logic (based on Nuntis' script):
+            # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
+            # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
+            # Send 'WR?'. Return false if empty or response doesn't sart with 'OK, Write'.
+            # Otherwise return true.
+            log.debug('Sending command: V?')
+            ser.write(b'V?\n')
             response = ser.readline()
             log.debug(f'Received response: {response}')
-        ser.close()
-    
-        log.debug(f'Final byte string: {file_list}')
-        return file_list
-    else:
-        log.error('No Anima saber found.')
-        raise NoAnimaSaberException
+            if not response or response.startswith(b'V=1.'):
+                ser.close()
+                log.info(f'No Polaris Anima EVO found on port {port}')
+                return False
+            
+            log.debug('Sending command: S?')
+            ser.write(b'S?\n')
+            response = ser.readline()
+            log.debug(f'Received response: {response}')
+            if not response or not response.startswith(b'S='):
+                ser.close()
+                log.info(f'No Polaris Anima EVO found on port {port}')
+                return False
+            
+            log.debug('Sending command: WR?')
+            ser.write(b'WR?\n')
+            response = ser.readline()
+            log.debug(f'Received response: {response}')
+            if not response or not response.startswith(b'OK, Write'):
+                ser.close()
+                log.info(f'No Polaris Anima EVO found on port {port}')
+                return False
 
-def erase_all_files(port: str) -> None:
-    '''Erases all files on the anima. USE CAREFULLY.'''
-    if port_is_anima(port):
-        ser = serial.Serial(port)
-        ser.apply_settings(serial_settings)
-        log.info('Checking that saber is ready.')
-        log.debug('Sending command: WR?')
-        ser.write(b'WR?\n') # check that saber is ready
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if response == b'OK, Write Ready\n':
-            log.info('Erasing all files on saber. This may take several minutes.')
-            log.debug('Sending command: ERASE=ALL')
-            ser.write(b'ERASE=ALL\n')
+            ser.close()
+            log.info(f'Found Polaris Anima EVO on port {port}')
+            return True
+        except:
+            log.info(f'No Polaris Anima EVO found on port {port}')
+            return False
+
+    def send_command(self, cmd: bytes) -> None:
+        '''Send command string to attached saber. It will automatically add b'\n' terminator if not already present.
+        
+        Note: this method does not check that the saber is write-ready.'''
+        if not cmd.endswith(b'\n'):
+            cmd += b'\n'
+        self.log.debug(f'Sending command to saber: {cmd}')
+        self._ser.write(cmd)
+    
+    def read_line(self) -> bytes:
+        '''Reads the next line (terminated by b'\n') from the serial buffer.
+        
+        Note: this removes the line from the buffer.'''
+        response = self._ser.readline()
+        self.log.debug(f'Received response: {response}')
+        return response
+
+    def saber_is_ready(self) -> bool:
+        '''Checks to see if saber is ready to receive commands.
+        
+        NB: This method will not throw exceptions. Any exceptions will cause result of False.'''
+        try:
+            self.send_command(b'WR?')
+            response = self.read_line()
+            if response == b'OK, Write Ready\n':
+                self.log.debug('Saber is ready to receive commands.')
+                return True
+            self.log.error('Saber is not ready to receive commands.')
+            return False
+        except Exception:
+            self.log.error('Saber is not ready to receive commands.')
+            return False
+
+    def get_saber_info(self) -> dict:
+        '''Retrieve firmware version and serial number from saber. Returns a dict with keys 'version' and 'serial'.'''
+        if self.saber_is_ready():
+            self.log.info('Retrieving firmware version and serial number from saber.')
+            info = {}
+            
+            # get firmware version
+            cmd = b'V?'
+            self.send_command(cmd)
+            response = self.read_line()
+            if not response or not response.startswith(b'V='):
+                self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+                raise InvalidSaberResponseException
+            else:
+                info['version'] = response.decode().strip()[2:]
+
+            # get serial number
+            cmd = b'S?'
+            self.send_command(cmd)
+            response = self.read_line()
+            if not response or not response.startswith(b'S='):
+                self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+                raise InvalidSaberResponseException
+            else:
+                info['serial'] = response.decode().strip()[2:]
+            
+            self.log.info(f'Found saber info: {info}')
+            return info
+        else:
+            raise AnimaNotReadyException
+
+    def list_files_on_saber_as_bytes(self) -> bytes:
+        '''Returns the raw byte string reported by the saber LIST? command.'''
+        file_list = b''
+        self.log.info(f'Retrieving file list from saber.')
+
+        if self.saber_is_ready():
+            cmd = b'LIST?'
+            self.send_command(cmd)
+            response = b''
+
+            while not response.endswith(b'\x03\n'):
+                response = self.read_line()
+                file_list += response
+        
+            self.log.debug(f'Final byte string: {file_list}')
+            return file_list
+        else:
+            raise AnimaNotReadyException
+
+    def erase_all_files(self) -> None:
+        '''Erases all files on the anima. USE CAREFULLY.'''
+        if self.saber_is_ready():
+            self.log.info('Erasing all files on saber. This may take several minutes.')
+            cmd = b'ERASE=ALL'
+            self.send_command(cmd)
             
             # Listen to output stream to make sure process is ongoing/completed
-            response = ser.readline() # "Erasing Serial Flash, this may take 20s to 2 minutes\n"
-            log.debug(f'Received response: {response}')
-            #print(response.decode().strip())
-            ser.timeout = 5 # increase timeout while we wait for #s to display
-            c = ser.read(1)
+            response = self.read_line() # "Erasing Serial Flash, this may take 20s to 2 minutes\n"
+            self._ser.timeout = 5 # increase timeout while we wait for #s to display
+            c = self._ser.read(1)
             while c < b'\x41': # any ascii character before 'A'
                 print(c.decode(), end='', flush=True)
-                c = ser.read(1)
-            response = c + ser.readline()
-            log.debug(f'Received response: {response}')
-            print(response.decode().strip())
-            response = ser.readline()
-            log.debug(f'Received response: {response}')
-            print(response.decode().strip())
-            log.info(response.decode().strip())
-
-            ser.close()
+                c = self._ser.read(1)
+            # manually read the next line using the serial connection and combine it with the last char read.
+            response = c + self._ser.readline()
+            self.log.debug(f'Received response: {response}') # b'OK, Now re-load your sound files.\n'
+            response = self.read_line() # b'OK, Serial Flash Erased.\n'
+            response = self.read_line() # b'\n'
+            self._ser.timeout = self._SERIAL_SETTINGS['timeout']
         else:
-            ser.close()
-            log.error('Anima not ready.')
             raise AnimaNotReadyException
-    else:
-        log.error('No Anima saber found.')
-        raise NoAnimaSaberException
 
-def get_free_space(port: str) -> int:
-    '''Returns the amount of free space in Anima storage in bytes.'''
-    ser = serial.Serial(port)
-    ser.apply_settings(serial_settings)
-    log.info('Getting free space on Anima.')
-    log.debug('Sending command: FREE?')
-    ser.write(b'FREE?\n')
-    response = ser.readline()
-    log.debug(f'Received response: {response}')
-    r = response.decode().strip()
-    free_space = int(r[5:])
-    log.info(f'Free space: {free_space} bytes')
-    ser.close()
-    return free_space
+    def get_free_space(self) -> int:
+        '''Returns the amount of free space in Anima storage in bytes.'''
+        self.log.info('Getting free space on Anima.')
+        cmd = b'FREE?'
+        self.send_command(cmd)
+        response = self.read_line()
+        r = response.decode().strip()
+        free_space = int(r[5:])
+        self.log.info(f'Free space: {free_space} bytes')
+        return free_space
 
-def write_files_to_saber(port: str, files: list[str]) -> None:
-    '''Write file(s) to saber. First argument is the port to write to; second argument is a list of filenames.
+    def write_files_to_saber(self, files: list[str]) -> None:
+        '''Write file(s) to saber. Expects a list of file names.
 
-    NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
-    if port_is_anima(port):
-        ser = serial.Serial(port)
-        ser.apply_settings(serial_settings)
-        log.info('Checking that saber is ready.')
-        log.debug('Sending command: WR?')
-        ser.write(b'WR?\n') # check that saber is ready
-        response = ser.readline()
-        log.debug(f'Received response: {response}')
-        if response == b'OK, Write Ready\n':
-            log.info(f'List of files to write to saber: {files}')
+        NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
+        
+        if self.saber_is_ready():
+            self.log.info(f'Preparing to write file(s) to saber: {files}')
             for file in files:
-                log.info(f'Writing file to saber: {file}')
+                self.log.info(f'Writing file to saber: {file}')
                 
                 # Check for enough free space
                 file_size = os.path.getsize(file)
-                log.debug(f'File size: {file_size}')
-                ser.close() # have to close the connection so other method can access it
-                free_space = get_free_space(port)
+                self.log.debug(f'File size: {file_size}')
+                free_space = self.get_free_space()
                 if free_space < file_size:
-                    log.error(f'Not enough free space on saber for file {file}')
-                    ser.close()
+                    self.log.error(f'Not enough free space on saber for file {file}')
                     raise NotEnoughFreeSpaceException
-                ser.open()
 
                 # Write the file
                 with open(file, mode='rb') as binary_file:
@@ -293,41 +335,34 @@ def write_files_to_saber(port: str, files: list[str]) -> None:
                     report_every_n_bytes = 512 # How often to update the bytes sent display
 
                     cmd = b'WR=' + fname.encode('utf-8') + b',' + str(file_size).encode('utf-8') + b'\n'
-                    log.debug(f'Sending command: {cmd}')
-                    ser.write(cmd)
-                    log.debug(f'Beginning byte stream for file {fname}')
+                    self.send_command(cmd)
+                    self.log.debug(f'Beginning byte stream for file {fname}')
                     byte = binary_file.read(1)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
-                        ser.write(byte)
+                        self._ser.write(byte)
                         bytes_sent += 1
                         byte = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}     ')
                 
-                response = ser.readline()
-                log.debug(f'Received response: {response}')
+                response = self.read_line()
                 if not response == b'OK, Write Complete\n':
-                    ser.close()
-                    log.error(f'Error writing file to Anima. Error message: {response}')
+                    self.log.error(f'Error writing file to saber. Error message: {response}')
                     raise AnimaFileWriteException
             
-                log.info(f'Successfully wrote file to Anima: {file}')
-            ser.close()
+                self.log.info(f'Successfully wrote file to saber: {file}')
         else:
-            ser.close()
-            log.error('Anima not ready.')
             raise AnimaNotReadyException
-    else:
-        log.error('No Anima saber found.')
-        raise NoAnimaSaberException
+
     
 # ---------------------------------------------------------------------- #
 # Command Line Operations                                                #
 # ---------------------------------------------------------------------- #
 
 def main_func():
+    log = logging.getLogger()
     log.setLevel(logging.ERROR)
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
@@ -375,26 +410,18 @@ def main_func():
     # Find port that Anima is connected to
     try:
         print('Searching for OpenCore saber.')
-        port_list = get_ports()
-        port = ''
-        # look for first port with an Anima connected
-        for p in port_list:
-            if port_is_anima(p):
-                port = p
-                print('OpenCore saber found.')
-                break
-        if not port:
-            raise NoAnimaSaberException
+        sc = Saber_Controller(loglevel=logging.DEBUG if args.debug else logging.ERROR)
+        print(f'OpenCore saber found on port {sc.port}')
         
         # Execute functions based on arguments provided
         if args.info: # display saber information
             print('\nRetrieving saber information')
-            inf = get_saber_info(port)
+            inf = sc.get_saber_info()
             print(f'Firmware version:\tv{inf["version"]}\nSerial Number:\t\t{inf["serial"]}')
         
         if args.list: # list files on saber
             print('\nRetrieving list of files on saber.')
-            file_list = list_files_on_saber_as_bytes(port)
+            file_list = sc.list_files_on_saber_as_bytes()
             print(file_list.decode().strip())
         
         if args.erase_all: # erase all files on saber
@@ -403,7 +430,7 @@ def main_func():
             if yorn.lower() == 'y' or yorn.lower() == 'yes':
                 # do the thing
                 print('Erasing all files on saber. This may take several minutes.')
-                erase_all_files(port)
+                sc.erase_all_files()
             else:
                 print('Aborting saber erase command.')
                 sys.exit(1)
@@ -428,22 +455,31 @@ def main_func():
                     else:
                         verified_files.append(file)
                 except FileNotFoundError as e:
-                    log.error(e)
+                    log.error(f'File not found: {e.filename}')
                     if args.continue_on_file_not_found:
                         continue
                     else:
+                        print('Aborting operation.')
                         exit_code = 1
                         sys.exit(1)
             
             # send files to saber
-            write_files_to_saber(port, verified_files)
+            try:
+                sc.write_files_to_saber(verified_files)
+                print(f'\nSuccessfully wrote file{"s" if len(verified_files)>1 else ""} to saber: {verified_files}')
+            except AnimaFileWriteException:
+                log.error('Error writing to saber. You should erase your saber and re-upload all files to avoid corrupted files.')
+                exit_code = 1
 
     except NoAnimaSaberException as e:
-        log.error('No OpenCore saber found.')
+        log.error('No OpenCore saber found. If the saber is connected, try restarting it with the on/off switch. If the problem persists, try a different USB cable.')
         exit_code = 1
 
+    except AnimaNotReadyException:
+        log.error('Saber is not ready to receive commands. Try restarting the saber using the on/off switch.')
+
     except Exception as e:
-        log.error(f'An error has occurred: {e}')
+        log.error(e)
         exit_code = 1
     
     finally:
