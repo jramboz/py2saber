@@ -11,7 +11,7 @@ Use with system Python >=3.6:
 - Install requirements: `pip install -r requirements.txt`
 - Run `python py2saber.py` to display usage information
 
-Alternately, you can download pre-built binaries (coming soon).
+Alternately, you can download pre-built binaries from the [release page](https://github.com/jramboz/py2saber/releases).
 
 ## Usage
 ```
