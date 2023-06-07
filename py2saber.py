@@ -109,7 +109,7 @@ class Saber_Controller:
 
         _log.info('Searching for available serial ports.')
         port_list = lp.comports()
-        _log.debug(f'Found {len(port_list)} ports before filtering: {port_list}')
+        _log.debug(f'Found {len(port_list)} ports before filtering: {[port.device for port in port_list]}')
 
         # Filter down list of ports depending on OS
         system = platform.system()
