@@ -310,6 +310,21 @@ class Saber_Controller:
         self.log.info(f'Free space: {free_space} bytes')
         return free_space
 
+    def read_config_ini(self) -> str:
+        '''Read the config.ini file from saber and return as a string'''
+        self.log.info('Reading config.ini from saber')
+        cmd = b'RD?config.ini\n'
+        self.send_command(cmd)
+        # Anima doesn't seem to properly sent STX/ETX bytes. Instead just sends '2' and '3'
+        config = b''
+        while not config.endswith(b'}3'):
+            # read one byte at a time, since last line isn't terminated with \n
+            config += self._ser.read()
+
+        self.log.debug(f'Raw config string: {config}')
+        # slice off first and last char ('2' and '3')
+        return config.decode().strip()[1:-1]
+
     def write_files_to_saber(self, files: list[str]) -> None:
         '''Write file(s) to saber. Expects a list of file names.
 
@@ -401,6 +416,9 @@ def main_func():
     parser.add_argument('--erase-all', 
                         action="store_true",
                         help='erase all files on saber')
+    parser.add_argument('--config',
+                        action="store_true",
+                        help='Display config.ini from saber')
     
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -424,6 +442,12 @@ def main_func():
             file_list = sc.list_files_on_saber_as_bytes()
             print(file_list.decode().strip())
         
+        if args.config:
+            print('\nRetrieving config.ini from saber')
+            config = sc.read_config_ini()
+            print('Config.ini:\n')
+            print(config)
+
         if args.erase_all: # erase all files on saber
             print('\n*** This will erase ALL files on the saber! ***')
             yorn = input('Do you want to continue? (Y/N): ')
