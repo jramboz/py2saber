@@ -275,6 +275,16 @@ class Saber_Controller:
             return file_list
         else:
             raise AnimaNotReadyException
+    
+    def list_files_on_saber(self) -> dict[str: int]:
+        '''Returns a dictionary containing the files on the saber. Key is the filename, value is the file size in bytes.'''
+        file_dict = {}
+        file_list = self.list_files_on_saber_as_bytes().decode()
+        regex = re.compile(r"^(\w+\.RAW)\s+(\d+)$", re.MULTILINE)
+        matches = regex.findall(file_list)
+        for match in matches:
+            file_dict[match[0]] = int(match[1])
+        return file_dict
 
     def erase_all_files(self) -> None:
         '''Erases all files on the anima. USE CAREFULLY.'''
