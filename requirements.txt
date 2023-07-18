@@ -1,3 +1,2 @@
 pyserial
 py-getch
-win_wildcard

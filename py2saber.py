@@ -23,9 +23,9 @@ import sys
 import argparse
 import errno
 from getch import pause_exit
-from win_wildcard import expand_windows_wildcard
+import glob
 
-script_version = '0.10b'
+script_version = '0.11b'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -475,8 +475,9 @@ def main_func():
                 log.info('Windows system detected. Expanding any wildcards in file names.')
                 expanded_files = []
                 for file in args.files:
-                    expanded_files.extend(expand_windows_wildcard(file, only_files=True))
-                args.files = expanded_files              
+                    expanded_files.extend(glob.glob(file))
+                args.files = expanded_files
+                log.debug(f'Expanded files: {args.files}')
 
             print(f'\nPreparing to upload file{"s" if len(args.files)>1 else ""} to saber.')
             
