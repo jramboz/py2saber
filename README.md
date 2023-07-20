@@ -5,6 +5,8 @@
 - Detailed debugging output available
 - Reusable Python functions for easy incorporation into other applications
 
+<a href="https://www.flaticon.com/free-icons/lightsaber" title="lightsaber icons">Lightsaber icons created by Nhor Phai - Flaticon</a>
+
 ## Installation
 Use with system Python >=3.6:
 - Clone repository
