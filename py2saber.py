@@ -286,7 +286,7 @@ class Saber_Controller:
             file_dict[match[0]] = int(match[1])
         return file_dict
 
-    def erase_all_files(self) -> None:
+    def erase_all_files(self, progress_callback: callable = None) -> None:
         '''Erases all files on the anima. USE CAREFULLY.'''
         if self.saber_is_ready():
             self.log.info('Erasing all files on saber. This may take several minutes.')
@@ -296,8 +296,12 @@ class Saber_Controller:
             # Listen to output stream to make sure process is ongoing/completed
             response = self.read_line() # "Erasing Serial Flash, this may take 20s to 2 minutes\n"
             self._ser.timeout = 5 # increase timeout while we wait for #s to display
+            i = 0
             c = self._ser.read(1)
             while c < b'\x41': # any ascii character before 'A'
+                if self.gui:
+                    i += 1
+                    progress_callback.emit(i*100//140)
                 print(c.decode(), end='', flush=True)
                 c = self._ser.read(1)
             # manually read the next line using the serial connection and combine it with the last char read.
@@ -335,7 +339,7 @@ class Saber_Controller:
         # slice off first and last char ('2' and '3')
         return config.decode().strip()[1:-1]
 
-    def write_files_to_saber(self, files: list[str]) -> None:
+    def write_files_to_saber(self, files: list[str], progress_callback: callable = None) -> None:
         '''Write file(s) to saber. Expects a list of file names.
 
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
@@ -370,6 +374,8 @@ class Saber_Controller:
                         byte = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
+                            if self.gui:
+                                progress_callback.emit(bytes_sent)
                     print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}     ')
                 
                 response = self.read_line()
@@ -465,6 +471,7 @@ def main_func():
                 # do the thing
                 print('Erasing all files on saber. This may take several minutes.')
                 sc.erase_all_files()
+                print("\nAll sound files on saber have been erased. Please re-load your sound files.")
             else:
                 print('Aborting saber erase command.')
                 sys.exit(1)
