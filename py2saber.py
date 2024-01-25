@@ -387,6 +387,49 @@ class Saber_Controller:
         else:
             raise AnimaNotReadyException
 
+    @staticmethod
+    def rgbw_to_byte_str(r: int, g: int, b:int, w: int):
+        return bytes(str(r), 'ascii') + b',' + bytes(str(g), 'ascii') + b',' + bytes(str(b), 'ascii') + b','+ bytes(str(w), 'ascii')
+
+    def preview_color(self, r: int, g: int, b: int, w: int):
+        cmd = b'P=' + self.rgbw_to_byte_str(r, g, b, w) + b'\n'
+        self.send_command(cmd)
+        response = self.read_line()
+        if response[:2] != b'OK':
+            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+            raise InvalidSaberResponseException
+    
+    def set_color(self, bank: int, effect: str, r: int, g: int, b: int, w:int):
+        '''Writes a color setting to the saber. 
+        bank specifies which bank (0-7). 
+        effect is one of "color", "clash", or "swing". 
+        RGBW values are 0-255'''
+        match effect:
+            case "color":
+                cmd = b'C'
+            case "clash":
+                cmd = b'F'
+            case "swing":
+                cmd = b'W'
+            case _:
+                self.log.error(f'Invalid effect type specified: {effect}')
+                return
+        
+        cmd = cmd + bytes(str(bank),'ascii') + b'=' + self.rgbw_to_byte_str(r, g, b, w) + b'\n'
+        self.send_command(cmd)
+        response = self.read_line()
+        if response[:2] != b'OK':
+            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+            raise InvalidSaberResponseException
+    
+    def set_active_bank(self, bank:int):
+        '''Sets the active bank (0-7)'''
+        cmd = b'B=' + bytes(str(bank), 'ascii') + b'\n'
+        self.send_command(cmd)
+        response = self.read_line()
+        if response[:2] != b'OK':
+            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+            raise InvalidSaberResponseException
     
 # ---------------------------------------------------------------------- #
 # Command Line Operations                                                #
