@@ -64,10 +64,11 @@ class Saber_Controller:
     def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
         self.log = logging.getLogger('Saber_Controller')
         self.log.setLevel(loglevel)
-        stream = logging.StreamHandler(sys.stdout)
-        #stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
-        stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-        self.log.addHandler(stream)
+        if not self.log.hasHandlers():
+            stream = logging.StreamHandler(sys.stdout)
+            #stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
+            stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+            self.log.addHandler(stream)
         self.log.info('Initializing saber connection.')
         self.gui = gui # Flag for whether to output signals for PySide GUI
         self.port = port
@@ -437,10 +438,11 @@ class Saber_Controller:
 
 def main_func():
     log = logging.getLogger()
-    log.setLevel(logging.ERROR)
-    stream = logging.StreamHandler(sys.stdout)
-    stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-    log.addHandler(stream)
+    if not log.hasHandlers():
+        log.setLevel(logging.ERROR)
+        stream = logging.StreamHandler(sys.stdout)
+        stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        log.addHandler(stream)
 
     exit_code = 0
 
