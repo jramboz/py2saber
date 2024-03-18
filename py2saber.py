@@ -51,15 +51,15 @@ class Saber_Controller:
     '''Controls communication with an OpenCore-based lightsaber.'''
     # Serial port communication settings
     _SERIAL_SETTINGS = {'baudrate': 115200, 
-                       'bytesize': 8, 
-                       'parity': 'N', 
-                       'stopbits': 1, 
-                       'xonxoff': False, 
-                       'dsrdtr': False, 
-                       'rtscts': False, 
-                       'timeout': 3, 
-                       'write_timeout': None, 
-                       'inter_byte_timeout': None}
+                        'bytesize': 8, 
+                        'parity': 'N', 
+                        'stopbits': 1, 
+                        'xonxoff': False, 
+                        'dsrdtr': False, 
+                        'rtscts': False, 
+                        'timeout': 3, 
+                        'write_timeout': None, 
+                        'inter_byte_timeout': None}
 
     def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
         self.log = logging.getLogger('Saber_Controller')
