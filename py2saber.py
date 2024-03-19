@@ -24,8 +24,9 @@ import argparse
 import errno
 from getch import pause_exit
 import glob
+import time
 
-script_version = '0.11b'
+script_version = '0.12b'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -209,6 +210,16 @@ class Saber_Controller:
         Note: this removes the line from the buffer.'''
         response = self._ser.readline()
         self.log.debug(f'Received response: {response}')
+        # Sometimes it seems the read request comes too fast, before the anima has had a chance to respond.
+        # So now, if I get a blank response, I wait and try again until a response is received or timeout.
+        if not response:
+            tries = 1
+            max_tries = 5
+            while not response and tries < max_tries:
+                time.sleep(0.5)
+                response = self._ser.readline()
+                self.log.debug(f'Received response: {response}')
+                tries += 1
         return response
 
     def saber_is_ready(self) -> bool:
@@ -346,6 +357,7 @@ class Saber_Controller:
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
         
         if self.saber_is_ready():
+            files.sort()
             self.log.info(f'Preparing to write file(s) to saber: {files}')
             for file in files:
                 self.log.info(f'Writing file to saber: {file}')
@@ -364,13 +376,15 @@ class Saber_Controller:
                     fname = os.path.basename(file)
                     report_every_n_bytes = 512 # How often to update the bytes sent display
 
-                    cmd = b'WR=' + fname.encode('utf-8') + b',' + str(file_size).encode('utf-8') + b'\n'
+                    cmd = b'WR=' + fname.encode('utf-8') + b', ' + str(file_size).encode('utf-8') + b'\n'
                     self.send_command(cmd)
+                    response = self.read_line()
                     self.log.debug(f'Beginning byte stream for file {fname}')
                     byte = binary_file.read(1)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
                         self._ser.write(byte)
+                        time.sleep(0.00009) # otherwise it sends too fast on mac (and linux?)
                         bytes_sent += 1
                         byte = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
@@ -385,6 +399,7 @@ class Saber_Controller:
                     raise AnimaFileWriteException
             
                 self.log.info(f'Successfully wrote file to saber: {file}')
+                time.sleep(1)
         else:
             raise AnimaNotReadyException
 
