@@ -375,6 +375,7 @@ class Saber_Controller:
                     bytes_sent = 0
                     fname = os.path.basename(file)
                     report_every_n_bytes = 512 # How often to update the bytes sent display
+                    system = platform.system()
 
                     cmd = b'WR=' + fname.encode('utf-8') + b', ' + str(file_size).encode('utf-8') + b'\n'
                     self.send_command(cmd)
@@ -384,7 +385,8 @@ class Saber_Controller:
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
                         self._ser.write(byte)
-                        time.sleep(0.00009) # otherwise it sends too fast on mac (and linux?)
+                        if system != 'Windows':
+                            time.sleep(0.00009) # otherwise it sends too fast on mac (and linux?)
                         bytes_sent += 1
                         byte = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
