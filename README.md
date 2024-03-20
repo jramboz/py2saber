@@ -8,10 +8,13 @@
 <a href="https://www.flaticon.com/free-icons/lightsaber" title="lightsaber icons">Lightsaber icons created by Nhor Phai - Flaticon</a>
 
 ## Installation
-Use with system Python >=3.6:
-- Clone repository
+From source with system Python >=3.6:
+- Clone [GitHub repository](https://github.com/jramboz/py2saber)
 - Install requirements: `pip install -r requirements.txt`
 - Run `python py2saber.py` to display usage information
+
+Or via pip:
+- `pip install py2saber`
 
 Alternately, you can download pre-built binaries from the [release page](https://github.com/jramboz/py2saber/releases).
 
