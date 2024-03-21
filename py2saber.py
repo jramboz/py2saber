@@ -26,7 +26,7 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.12b'
+script_version = '0.12.1b'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -384,9 +384,9 @@ class Saber_Controller:
                     byte = binary_file.read(1)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
-                        self._ser.write(byte)
                         if system != 'Windows':
-                            time.sleep(0.00009) # otherwise it sends too fast on mac (and linux?)
+                            time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
+                        self._ser.write(byte)
                         bytes_sent += 1
                         byte = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
