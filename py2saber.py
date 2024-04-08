@@ -359,23 +359,22 @@ class Saber_Controller:
         '''Write file(s) to saber. Expects a list of file names.
 
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
-        
-        if self.saber_is_ready():
-            files.sort()
-            self.log.info(f'Preparing to write file(s) to saber: {files}')
-            for file in files:
-                self.log.info(f'Writing file to saber: {file}')
-                
-                # Check for enough free space
-                file_size = os.path.getsize(file)
-                self.log.debug(f'File size: {file_size}')
-                free_space = self.get_free_space()
-                if free_space < file_size:
-                    self.log.error(f'Not enough free space on saber for file {file}')
-                    raise NotEnoughFreeSpaceException
+        files.sort()
+        self.log.info(f'Preparing to write file(s) to saber: {files}')
+        for file in files:
+            self.log.info(f'Writing file to saber: {file}')
+            
+            # Check for enough free space
+            file_size = os.path.getsize(file)
+            self.log.debug(f'File size: {file_size}')
+            free_space = self.get_free_space()
+            if free_space < file_size:
+                self.log.error(f'Not enough free space on saber for file {file}')
+                raise NotEnoughFreeSpaceException
 
-                # Write the file
-                with open(file, mode='rb') as binary_file:
+            # Write the file
+            with open(file, mode='rb') as binary_file:
+                if self.saber_is_ready():
                     bytes_sent = 0
                     fname = os.path.basename(file)
                     report_every_n_bytes = 512 # How often to update the bytes sent display
@@ -388,8 +387,8 @@ class Saber_Controller:
                     byte = binary_file.read(1)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
-                        if system != 'Windows':
-                            time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
+                        #if system != 'Windows':
+                        #    time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
                         self._ser.write(byte)
                         bytes_sent += 1
                         byte = binary_file.read(1)
@@ -398,16 +397,16 @@ class Saber_Controller:
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
                     print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}     ')
-                
-                response = self.read_line()
-                if not response == b'OK, Write Complete\n':
-                    self.log.error(f'Error writing file to saber. Error message: {response}')
-                    raise AnimaFileWriteException
+                else:
+                    raise AnimaNotReadyException
             
-                self.log.info(f'Successfully wrote file to saber: {file}')
-                time.sleep(1)
-        else:
-            raise AnimaNotReadyException
+            response = self.read_line()
+            if not response == b'OK, Write Complete\n':
+                self.log.error(f'Error writing file to saber. Error message: {response}')
+                raise AnimaFileWriteException
+        
+            self.log.info(f'Successfully wrote file to saber: {file}')
+            time.sleep(1)
 
     @staticmethod
     def rgbw_to_byte_str(r: int, g: int, b:int, w: int):
