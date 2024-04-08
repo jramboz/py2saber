@@ -392,8 +392,8 @@ class Saber_Controller:
                     byte = binary_file.read(1)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     while byte:
-                        #if system != 'Windows':
-                        #    time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
+                        if system != 'Windows':
+                            time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
                         self._ser.write(byte)
                         bytes_sent += 1
                         byte = binary_file.read(1)
