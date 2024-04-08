@@ -131,6 +131,11 @@ class Saber_Controller:
         
         for port in port_list:
             if re.match(match_string, port.device):
+                # on macOS (Darwin), serial module returns /dev/cu.usbmodem*, but we should really use the corresponding /dev/tty.usbmodem*
+                if system == 'Darwin':
+                    serial_ports.append(re.sub('cu.', 'tty.', port.device))
+                else:
+                    serial_ports.append(port.device)
                 serial_ports.append(port.device)
         
         _log.info(f'Found {len(serial_ports)} port(s).')
