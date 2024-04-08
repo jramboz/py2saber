@@ -26,27 +26,32 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.12.1b'
+script_version = '0.12.2b'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
-
+# adapted from https://stackoverflow.com/a/66491013
+class DocDefaultException(Exception):
+    """Subclass exceptions use docstring as default message"""
+    def __init__(self, msg=None, detail="", *args, **kwargs):
+        super().__init__(msg or self.__doc__, *args, **kwargs)
+        self.detail = detail
 
 # Custom Exceptions
-class NoAnimaSaberException(Exception):
-    pass
+class NoAnimaSaberException(DocDefaultException):
+    '''No compatible Anima found. If an Anima is connected, try restarting it with the on/off switch. If the problem persists, try a different USB cable.'''
 
-class AnimaNotReadyException(Exception):
-    pass
+class AnimaNotReadyException(DocDefaultException):
+    '''Anima is not ready to receive commands. Try restarting the Anima using the on/off switch.'''
 
-class NotEnoughFreeSpaceException(Exception):
-    pass
+class NotEnoughFreeSpaceException(DocDefaultException):
+    '''Not enough free space on Anima to write the requested file(s).'''
 
-class AnimaFileWriteException(Exception):
-    pass
+class AnimaFileWriteException(DocDefaultException):
+    '''Error writing file(s) to Anima. Files are possibly corrupt. You should erase all files and re-upload.'''
 
-class InvalidSaberResponseException(Exception):
-    pass
+class InvalidSaberResponseException(DocDefaultException):
+    '''Received invalid response from saber.'''
 
 class Saber_Controller:
     '''Controls communication with an OpenCore-based lightsaber.'''
@@ -88,7 +93,6 @@ class Saber_Controller:
                     break
 
         if not self.port:
-            self.log.error('No OpenCore sabers found.')
             raise NoAnimaSaberException
         
         # Initialize the serial connection
@@ -146,15 +150,15 @@ class Saber_Controller:
             log.info(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
             ser = serial.Serial(port)
             ser.apply_settings({'baudrate': 115200, 
-                           'bytesize': 8, 
-                           'parity': 'N', 
-                           'stopbits': 1, 
-                           'xonxoff': False, 
-                           'dsrdtr': False, 
-                           'rtscts': False, 
-                           'timeout': 3, 
-                           'write_timeout': None, 
-                           'inter_byte_timeout': None})
+                                'bytesize': 8, 
+                                'parity': 'N', 
+                                'stopbits': 1, 
+                                'xonxoff': False, 
+                                'dsrdtr': False, 
+                                'rtscts': False, 
+                                'timeout': 3, 
+                                'write_timeout': None, 
+                                'inter_byte_timeout': None})
             
             # Checking logic (based on Nuntis' script):
             # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
@@ -453,13 +457,17 @@ class Saber_Controller:
 # Command Line Operations                                                #
 # ---------------------------------------------------------------------- #
 
+def error_handler(e: DocDefaultException):
+    '''Print an exception to the log, with details if provided in Exception'''
+    log = logging.getLogger()
+    log.debug(e, exc_info=True)
+    if e.detail:
+        log.error(str(e) + '\nDetails: ' + e.detail)
+    else:
+        log.error(e)
+
 def main_func():
     log = logging.getLogger()
-    if not log.hasHandlers():
-        log.setLevel(logging.ERROR)
-        stream = logging.StreamHandler(sys.stdout)
-        stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-        log.addHandler(stream)
 
     exit_code = 0
 
@@ -575,15 +583,8 @@ def main_func():
                 log.error('Error writing to saber. You should erase your saber and re-upload all files to avoid corrupted files.')
                 exit_code = 1
 
-    except NoAnimaSaberException as e:
-        log.error('No OpenCore saber found. If the saber is connected, try restarting it with the on/off switch. If the problem persists, try a different USB cable.')
-        exit_code = 1
-
-    except AnimaNotReadyException:
-        log.error('Saber is not ready to receive commands. Try restarting the saber using the on/off switch.')
-
     except Exception as e:
-        log.error(e)
+        error_handler(e)
         exit_code = 1
     
     finally:
