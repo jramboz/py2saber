@@ -1,0 +1,60 @@
+# This is a basic workflow that is manually triggered
+
+name: Build Executables with PyInstaller
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: >
+          path of your '.py' or '.spec' file. 
+            - This file will be used to create executable.
+            - If .py: Generated spec file will also be uploaded as artifact
+        required: true
+        default: 'py2saber.py'
+      requirements:
+        description: path of your requirements.txt file
+        default: 'build-requirements.txt'
+      options:
+        description: > 
+          Options to set for pyinstaller command
+          Ex: options: '--onedir, -F'       (seperated by comma and space)
+            - Supported options: Check readme
+        default: '-F, -i py2saber.png'
+      python_ver:
+        description: specific python version you want to use
+        default: '3.10'
+      python_arch:
+        description: specific python architecture for Windows build
+        default: 'x64'
+
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  pyinstaller-build-win:
+    runs-on: windows-latest
+    steps:
+      - name: PyInstaller Action
+        uses: Martin005/pyinstaller-action@v1.2.0
+        with:
+          python_ver: ${{ inputs.python_ver }}
+          spec: ${{ inputs.spec }}
+          requirements: ${{ inputs.requirements }}
+          options: ${{ inputs.options }}
+          python_arch: ${{ inputs.python_arch }}
+          upload_exe_with_name: 'py2saber-win'
+  pyinstaller-build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: PyInstaller Action
+        uses: Martin005/pyinstaller-action@v1.2.0
+        with:
+          python_ver: ${{ inputs.python_ver }}
+          spec: ${{ inputs.spec }}
+          requirements: ${{ inputs.requirements }}
+          options: ${{ inputs.options }}
+          python_arch: ${{ inputs.python_arch }}
+          upload_exe_with_name: 'py2saber-mac'
+  
