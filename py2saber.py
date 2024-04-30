@@ -1,4 +1,4 @@
-# py2saber Copyright © 2023 Jason Ramboz
+# py2saber Copyright © 2023-2024 Jason Ramboz
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 #
@@ -70,11 +70,6 @@ class Saber_Controller:
     def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
         self.log = logging.getLogger('Saber_Controller')
         self.log.setLevel(loglevel)
-        if not self.log.hasHandlers():
-            stream = logging.StreamHandler(sys.stdout)
-            #stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
-            stream.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-            self.log.addHandler(stream)
         self.log.info('Initializing saber connection.')
         self.gui = gui # Flag for whether to output signals for PySide GUI
         self.port = port
