@@ -26,7 +26,7 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.12.2b'
+script_version = '0.12.3b'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
