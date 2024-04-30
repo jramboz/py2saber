@@ -26,7 +26,7 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.12.3b'
+script_version = '0.13'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -339,6 +339,28 @@ class Saber_Controller:
         free_space = int(r[5:])
         self.log.info(f'Free space: {free_space} bytes')
         return free_space
+    
+    def get_used_space(self) -> int:
+        '''Returns the amount of used space in Anima storage in bytes.'''
+        self.log.info('Getting used space on Anima.')
+        cmd = b'USED?'
+        self.send_command(cmd)
+        response = self.read_line()
+        r = response.decode().strip()
+        used_space = int(r[5:])
+        self.log.info(f'Used space: {used_space} bytes')
+        return used_space
+    
+    def get_total_space(self) -> int:
+        '''Returns the amount of total storage space in Anima storage in bytes.'''
+        self.log.info('Getting total storage space on Anima.')
+        cmd = b'SIZE?'
+        self.send_command(cmd)
+        response = self.read_line()
+        r = response.decode().strip()
+        total_space = int(r[5:])
+        self.log.info(f'Total space: {total_space} bytes')
+        return total_space
 
     def read_config_ini(self) -> str:
         '''Read the config.ini file from saber and return as a string'''
