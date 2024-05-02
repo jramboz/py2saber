@@ -53,6 +53,9 @@ class AnimaFileWriteException(DocDefaultException):
 class InvalidSaberResponseException(DocDefaultException):
     '''Received invalid response from saber.'''
 
+class InvalidSoundEffectSpecifiedException(DocDefaultException):
+    '''Invalid sound effect specified.'''
+
 class Saber_Controller:
     '''Controls communication with an OpenCore-based lightsaber.'''
     # Serial port communication settings
@@ -474,6 +477,49 @@ class Saber_Controller:
             self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
             raise InvalidSaberResponseException
     
+    @staticmethod
+    def _get_cmd_for_sound_effect(effect: str) -> bytes:
+        '''returns the command header for the given sound effect. Calling function needs to either add '?' or '=' to the end.'''
+        match effect:
+            case 'on':
+                return b'sON'
+            case 'off':
+                return b'sOFF'
+            case 'hum':
+                return b'sHUM'
+            case 'swing':
+                return b'sSW'
+            case 'clash':
+                return b'sCL'
+            case 'smoothSwingA':
+                return b'sSMA'
+            case 'smoothSwingB':
+                return b'sSMB'
+            case _:
+                raise InvalidSoundEffectSpecifiedException(detail=f'Specified effect: {effect}')
+
+    def set_sounds_for_effect(self, effect: str, files: list[str]):
+        '''Sets the sound list for a given effect.'''
+        self.log.debug(f'Setting sound files {str(files)} for effect "{effect}".')
+        cmd = self._get_cmd_for_sound_effect(effect) + b'=' + ','.join(files).encode('utf-8')
+        self.send_command(cmd)
+        response = self.read_line()
+        if response != b'OK ' + cmd + b'\n':
+            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+            raise InvalidSaberResponseException
+
+    def get_sounds_for_effect(self, effect: str) -> list[str]:
+        '''Returns a list of filenames Anima is using for the specified effect.'''
+        self.log.debug(f'Retrieving list of sound files for effect "{effect}".')
+        cmd = self._get_cmd_for_sound_effect(effect) + b'?'
+        self.send_command(cmd)
+        response = self.read_line()
+        r = response.split(b'=')
+        if r[0] != self._get_cmd_for_sound_effect(effect):
+            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
+            raise InvalidSaberResponseException
+        return r[1].decode().strip().split(',')
+
 # ---------------------------------------------------------------------- #
 # Command Line Operations                                                #
 # ---------------------------------------------------------------------- #
