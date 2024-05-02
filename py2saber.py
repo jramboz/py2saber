@@ -33,9 +33,10 @@ script_repo = 'https://github.com/jramboz/py2saber'
 # adapted from https://stackoverflow.com/a/66491013
 class DocDefaultException(Exception):
     """Subclass exceptions use docstring as default message"""
-    def __init__(self, msg=None, detail="", *args, **kwargs):
+    def __init__(self, msg=None, *args, **kwargs):
+        if msg:
+            msg = self.__doc__ + '\n' + msg
         super().__init__(msg or self.__doc__, *args, **kwargs)
-        self.detail = detail
 
 # Custom Exceptions
 class NoAnimaSaberException(DocDefaultException):
@@ -256,8 +257,7 @@ class Saber_Controller:
             self.send_command(cmd)
             response = self.read_line()
             if not response or not response.startswith(b'V='):
-                self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-                raise InvalidSaberResponseException
+                raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
             else:
                 info['version'] = response.decode().strip()[2:]
 
@@ -266,8 +266,7 @@ class Saber_Controller:
             self.send_command(cmd)
             response = self.read_line()
             if not response or not response.startswith(b'S='):
-                self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-                raise InvalidSaberResponseException
+                raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
             else:
                 info['serial'] = response.decode().strip()[2:]
             
@@ -394,8 +393,7 @@ class Saber_Controller:
             self.log.debug(f'File size: {file_size}')
             free_space = self.get_free_space()
             if free_space < file_size:
-                self.log.error(f'Not enough free space on saber for file {file}')
-                raise NotEnoughFreeSpaceException
+                raise NotEnoughFreeSpaceException(f'File: {file}')
 
             # Write the file
             with open(file, mode='rb') as binary_file:
@@ -427,8 +425,7 @@ class Saber_Controller:
             
             response = self.read_line()
             if not response == b'OK, Write Complete\n':
-                self.log.error(f'Error writing file to saber. Error message: {response}')
-                raise AnimaFileWriteException
+                raise AnimaFileWriteException(f'Error message: {response}')
         
             self.log.info(f'Successfully wrote file to saber: {file}')
             time.sleep(1)
@@ -442,8 +439,7 @@ class Saber_Controller:
         self.send_command(cmd)
         response = self.read_line()
         if response[:2] != b'OK':
-            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-            raise InvalidSaberResponseException
+            raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
     
     def set_color(self, bank: int, effect: str, r: int, g: int, b: int, w:int):
         '''Writes a color setting to the saber. 
@@ -465,8 +461,7 @@ class Saber_Controller:
         self.send_command(cmd)
         response = self.read_line()
         if response[:2] != b'OK':
-            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-            raise InvalidSaberResponseException
+            raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
     
     def set_active_bank(self, bank:int):
         '''Sets the active bank (0-7)'''
@@ -474,8 +469,7 @@ class Saber_Controller:
         self.send_command(cmd)
         response = self.read_line()
         if response[:2] != b'OK':
-            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-            raise InvalidSaberResponseException
+            raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
     
     @staticmethod
     def _get_cmd_for_sound_effect(effect: str) -> bytes:
@@ -496,7 +490,7 @@ class Saber_Controller:
             case 'smoothSwingB':
                 return b'sSMB'
             case _:
-                raise InvalidSoundEffectSpecifiedException(detail=f'Specified effect: {effect}')
+                raise InvalidSoundEffectSpecifiedException(f'Specified effect: {effect}')
 
     def set_sounds_for_effect(self, effect: str, files: list[str]):
         '''Sets the sound list for a given effect.'''
@@ -505,8 +499,7 @@ class Saber_Controller:
         self.send_command(cmd)
         response = self.read_line()
         if response != b'OK ' + cmd + b'\n':
-            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-            raise InvalidSaberResponseException
+            raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
 
     def get_sounds_for_effect(self, effect: str) -> list[str]:
         '''Returns a list of filenames Anima is using for the specified effect.'''
@@ -516,8 +509,7 @@ class Saber_Controller:
         response = self.read_line()
         r = response.split(b'=')
         if r[0] != self._get_cmd_for_sound_effect(effect):
-            self.log.error(f'Invalid response received.\nCommand: {cmd}\nResponse: {response}')
-            raise InvalidSaberResponseException
+            raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
         return r[1].decode().strip().split(',')
 
 # ---------------------------------------------------------------------- #
@@ -525,13 +517,9 @@ class Saber_Controller:
 # ---------------------------------------------------------------------- #
 
 def error_handler(e: DocDefaultException):
-    '''Print an exception to the log, with details if provided in Exception'''
+    '''Print an exception to the log.'''
     log = logging.getLogger()
     log.debug(e, exc_info=True)
-    if e.detail:
-        log.error(str(e) + '\nDetails: ' + e.detail)
-    else:
-        log.error(e)
 
 def main_func():
     log = logging.getLogger()
