@@ -26,7 +26,7 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.13'
+script_version = '0.13.1'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -135,7 +135,6 @@ class Saber_Controller:
                     serial_ports.append(re.sub('cu.', 'tty.', port.device))
                 else:
                     serial_ports.append(port.device)
-                serial_ports.append(port.device)
         
         _log.info(f'Found {len(serial_ports)} port(s).')
         _log.debug(f'Found ports: {serial_ports}')
@@ -151,7 +150,7 @@ class Saber_Controller:
         try:
             log = logging.getLogger('Saber_Controller')
 
-            log.info(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
+            log.debug(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
             ser = serial.Serial(port)
             ser.apply_settings({'baudrate': 115200, 
                                 'bytesize': 8, 
@@ -184,7 +183,7 @@ class Saber_Controller:
             log.debug(f'Received response: {response}')
             if not response or not response.startswith(b'S='):
                 ser.close()
-                log.info(f'No Polaris Anima EVO found on port {port}')
+                log.debug(f'No Polaris Anima EVO found on port {port}')
                 return False
             
             log.debug('Sending command: WR?')
@@ -193,14 +192,14 @@ class Saber_Controller:
             log.debug(f'Received response: {response}')
             if not response or not response.startswith(b'OK, Write'):
                 ser.close()
-                log.info(f'No Polaris Anima EVO found on port {port}')
+                log.debug(f'No Polaris Anima EVO found on port {port}')
                 return False
 
             ser.close()
             log.info(f'Found Polaris Anima EVO on port {port}')
             return True
         except:
-            log.info(f'No Polaris Anima EVO found on port {port}')
+            log.debug(f'No Polaris Anima EVO found on port {port}')
             return False
 
     def send_command(self, cmd: bytes) -> None:
