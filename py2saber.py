@@ -26,7 +26,7 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.13.1'
+script_version = '0.14'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -70,6 +70,8 @@ class Saber_Controller:
                         'timeout': 3, 
                         'write_timeout': None, 
                         'inter_byte_timeout': None}
+    
+    _CHUNK_SIZE = 130   # NXTs run into buffer problems if you try to send more than 130 bytes at a time
 
     def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
         self.log = logging.getLogger('Saber_Controller')
@@ -522,6 +524,9 @@ def error_handler(e: DocDefaultException):
 
 def main_func():
     log = logging.getLogger()
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+    log.addHandler(handler)
 
     exit_code = 0
 
@@ -559,6 +564,9 @@ def main_func():
     parser.add_argument('--config',
                         action="store_true",
                         help='Display config.ini from saber')
+    parser.add_argument('-t', '--command',
+                        action='store', dest='cmd',
+                        help='send literal command CMD to saber (NOTE: only use if you know what you are doing!)')
     
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -587,6 +595,16 @@ def main_func():
             config = sc.read_config_ini()
             print('Config.ini:\n')
             print(config)
+
+        if args.cmd:
+            print(f'\nSending command to saber: {args.cmd}')
+            sc.send_command(args.cmd.encode('utf-8'))
+            response = sc.read_line().strip().decode('utf-8')
+            print("Received response: ")
+            while response:
+                print(response)
+                response = sc.read_line().strip().decode('utf-8')
+            return
 
         if args.erase_all: # erase all files on saber
             print('\n*** This will erase ALL files on the saber! ***')
