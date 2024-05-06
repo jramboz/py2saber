@@ -210,8 +210,17 @@ class Saber_Controller:
         Note: this method does not check that the saber is write-ready.'''
         if not cmd.endswith(b'\n'):
             cmd += b'\n'
-        self.log.debug(f'Sending command to saber: {cmd}')
-        self._ser.write(cmd)
+        if len(cmd) <= self._CHUNK_SIZE: # Send the whole thing at once
+            self.log.debug(f'Sending command to saber: {cmd}')
+            self._ser.write(cmd)
+        else: # send in chunks
+            self.log.debug(f'Sending command in chunks of {self._CHUNK_SIZE} bytes')
+            pos = 0
+            while pos < len(cmd):
+                self.log.debug(f'Sending command to saber: {cmd[pos:pos+self._CHUNK_SIZE]}')
+                self._ser.write(cmd[pos:pos+self._CHUNK_SIZE])
+                pos += self._CHUNK_SIZE
+                time.sleep(0.5)
     
     def read_line(self) -> bytes:
         '''Reads the next line (terminated by b'\n') from the serial buffer.
