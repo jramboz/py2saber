@@ -223,7 +223,7 @@ class Saber_Controller:
         # So now, if I get a blank response, I wait and try again until a response is received or timeout.
         if not response:
             tries = 1
-            max_tries = 5
+            max_tries = 3
             while not response and tries < max_tries:
                 time.sleep(0.5)
                 response = self._ser.readline()
