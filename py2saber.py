@@ -71,7 +71,7 @@ class Saber_Controller:
                         'write_timeout': None, 
                         'inter_byte_timeout': None}
     
-    _CHUNK_SIZE = 130   # NXTs run into buffer problems if you try to send more than 130 bytes at a time
+    _CHUNK_SIZE = 128   # NXTs run into buffer problems if you try to send more than 128 bytes at a time
 
     def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
         self.log = logging.getLogger('Saber_Controller')
