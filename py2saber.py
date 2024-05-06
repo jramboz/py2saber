@@ -26,7 +26,7 @@ from getch import pause_exit
 import glob
 import time
 
-script_version = '0.14'
+script_version = '0.14.1'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -410,32 +410,34 @@ class Saber_Controller:
                 if self.saber_is_ready():
                     bytes_sent = 0
                     fname = os.path.basename(file)
-                    report_every_n_bytes = 512 # How often to update the bytes sent display
+                    report_every_n_bytes = self._CHUNK_SIZE*3 # How often to update the bytes sent display
                     system = platform.system()
 
                     cmd = b'WR=' + fname.encode('utf-8') + b', ' + str(file_size).encode('utf-8') + b'\n'
                     self.send_command(cmd)
                     response = self.read_line()
                     self.log.debug(f'Beginning byte stream for file {fname}')
-                    byte = binary_file.read(1)
+                    bytes = binary_file.read(self._CHUNK_SIZE)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
-                    while byte:
-                        if system != 'Windows':
-                            time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
-                        self._ser.write(byte)
-                        bytes_sent += 1
-                        byte = binary_file.read(1)
+                    time.sleep(0.1)
+                    while bytes:
+                        # if system != 'Windows':
+                        #     time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
+                        self._ser.write(bytes)
+                        bytes_sent += len(bytes)
+                        bytes = binary_file.read(self._CHUNK_SIZE)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
+                        time.sleep(0.01)
                     print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}     ')
                 else:
                     raise AnimaNotReadyException
             
             response = self.read_line()
             if not response == b'OK, Write Complete\n':
-                raise AnimaFileWriteException(f'Error message: {response}')
+                raise AnimaFileWriteException(f'Error message: {response.strip().decode()}')
         
             self.log.info(f'Successfully wrote file to saber: {file}')
             time.sleep(1)
@@ -529,6 +531,7 @@ class Saber_Controller:
 def error_handler(e: DocDefaultException):
     '''Print an exception to the log.'''
     log = logging.getLogger()
+    log.error(e)
     log.debug(e, exc_info=True)
 
 def main_func():
@@ -660,8 +663,8 @@ def main_func():
             try:
                 sc.write_files_to_saber(verified_files)
                 print(f'\nSuccessfully wrote file{"s" if len(verified_files)>1 else ""} to saber: {verified_files}')
-            except AnimaFileWriteException:
-                log.error('Error writing to saber. You should erase your saber and re-upload all files to avoid corrupted files.')
+            except AnimaFileWriteException as e:
+                error_handler(e)
                 exit_code = 1
 
     except Exception as e:
