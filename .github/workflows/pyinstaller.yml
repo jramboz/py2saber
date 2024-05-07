@@ -46,7 +46,7 @@ jobs:
           python_arch: ${{ inputs.python_arch }}
           upload_exe_with_name: 'py2saber-win'
   pyinstaller-build-mac:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - name: PyInstaller Action
         uses: Martin005/pyinstaller-action@v1.2.0
