@@ -154,16 +154,7 @@ class Saber_Controller:
 
             log.debug(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
             ser = serial.Serial(port)
-            ser.apply_settings({'baudrate': 115200, 
-                                'bytesize': 8, 
-                                'parity': 'N', 
-                                'stopbits': 1, 
-                                'xonxoff': False, 
-                                'dsrdtr': False, 
-                                'rtscts': False, 
-                                'timeout': 3, 
-                                'write_timeout': None, 
-                                'inter_byte_timeout': None})
+            ser.apply_settings(Saber_Controller._SERIAL_SETTINGS)
             
             # Checking logic (based on Nuntis' script):
             # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
@@ -431,7 +422,8 @@ class Saber_Controller:
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
                         time.sleep(0.01)
-                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}     ')
+                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}        ')
+                    if self.gui: progress_callback.emit(bytes_sent)
                 else:
                     raise AnimaNotReadyException
             
