@@ -20,7 +20,7 @@ dependencies = [
     "pyserial >= 3.5",
     "py-getch"
 ]
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 
 [project.urls]
 Homepage = "https://github.com/jramboz/py2saber"
