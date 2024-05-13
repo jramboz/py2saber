@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py2saber"
+version = "0.15.2"
+description = "Python-based utility for OpenCore lightsabers"
+readme = "README.md"
+authors = [{name = "Jason Ramboz", email = "jramboz@gmail.com"}]
+license = {file = "COPYING"}
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+]
+keywords = ["polaris", "ludosport", "lightsabers", "opencore"]
+dependencies = [
+    "pyserial >= 3.5",
+    "py-getch"
+]
+requires-python = ">=3.6"
+
+[project.urls]
+Homepage = "https://github.com/jramboz/py2saber"
+
+[project.scripts]
+py2saber = "py2saber:main_func"
