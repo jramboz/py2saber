@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['py2saber.py'],
+    ['py2saber/py2saber.py'],
     pathex=[],
     binaries=[],
-    datas=[('OpenCore_OEM', 'OpenCore_OEM')],
+    datas=[('py2saber/OpenCore_OEM', 'OpenCore_OEM')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
