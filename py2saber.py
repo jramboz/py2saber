@@ -330,6 +330,7 @@ class Saber_Controller:
             self.log.debug(f'Received response: {response}') # b'OK, Now re-load your sound files.\n'
             response = self.read_line() # b'OK, Serial Flash Erased.\n'
             response = self.read_line() # b'\n'
+            if self.gui: progress_callback.emit(100)
             self._ser.timeout = self._SERIAL_SETTINGS['timeout']
         else:
             raise AnimaNotReadyException
