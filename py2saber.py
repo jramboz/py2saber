@@ -26,6 +26,8 @@ from getch import pause_exit
 import glob
 import time
 
+basedir = os.path.dirname(os.path.realpath(__file__))
+
 script_version = '0.14.1'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
@@ -380,11 +382,25 @@ class Saber_Controller:
         # slice off first and last char ('2' and '3')
         return config.decode().strip()[1:-1]
 
-    def write_files_to_saber(self, files: list[str], progress_callback: callable = None) -> None:
+    def anima_is_NXT(self) -> bool:
+        '''Returns True if the attached saber is an NXT, False if not.'''
+        info = self.get_saber_info()
+        if info['version'][:4] == 'NXT_':
+            return True
+        return False
+
+    def write_files_to_saber(self, files: list[str], progress_callback: callable = None, add_beep: bool = True) -> None:
         '''Write file(s) to saber. Expects a list of file names.
+        
+        If add_beep is True (default), this method will automatically add the defauly BEEP.RAW for NXT sabers if no other BEEP.RAW is supplied.
 
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
         files.sort()
+
+        if self.anima_is_NXT() and not any("BEEP.RAW" in file for file in files):
+            self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
+            files.append(os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
+
         self.log.info(f'Preparing to write file(s) to saber: {files}')
         for file in files:
             self.log.info(f'Writing file to saber: {file}')
