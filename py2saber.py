@@ -392,12 +392,13 @@ class Saber_Controller:
     def write_files_to_saber(self, files: list[str], progress_callback: callable = None, add_beep: bool = True) -> None:
         '''Write file(s) to saber. Expects a list of file names.
         
-        If add_beep is True (default), this method will automatically add the defauly BEEP.RAW for NXT sabers if no other BEEP.RAW is supplied.
+        If add_beep is True (default), this method will automatically add the defauly BEEP.RAW for NXT sabers if no other BEEP.RAW is supplied or already on saber.
 
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
         files.sort()
 
-        if self.anima_is_NXT() and not any("BEEP.RAW" in file for file in files):
+        current_files = self.list_files_on_saber()
+        if self.anima_is_NXT() and not any("BEEP.RAW" in file for file in files) and 'BEEP.RAW' not in current_files.keys():
             self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
             files.append(os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
 
