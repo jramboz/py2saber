@@ -1,6 +1,5 @@
-/*.RAW
-/__pycache__
+__pycache__
 /build
 /dist
-/.DS_Store
+.DS_Store
 py2saber.egg-info
