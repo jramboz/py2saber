@@ -28,7 +28,7 @@ import time
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = '0.15.4'
+script_version = '0.15.5'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
