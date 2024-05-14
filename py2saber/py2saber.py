@@ -484,6 +484,7 @@ class Saber_Controller:
         response = self.read_line()
         if response[:2] != b'OK':
             raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
+        self.save_config()
     
     def set_active_bank(self, bank:int):
         '''Sets the active bank (0-7)'''
@@ -492,6 +493,7 @@ class Saber_Controller:
         response = self.read_line()
         if response[:2] != b'OK':
             raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
+        self.save_config()
     
     @staticmethod
     def _get_cmd_for_sound_effect(effect: str) -> bytes:
@@ -522,6 +524,7 @@ class Saber_Controller:
         response = self.read_line()
         if response != b'OK ' + cmd + b'\n':
             raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
+        self.save_config()
 
     def get_sounds_for_effect(self, effect: str) -> list[str]:
         '''Returns a list of filenames Anima is using for the specified effect.'''
@@ -533,6 +536,14 @@ class Saber_Controller:
         if r[0] != self._get_cmd_for_sound_effect(effect):
             raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
         return r[1].decode().strip().split(',')
+
+    def save_config(self):
+        '''Save the current configuration to the saber.'''
+        cmd = b'SAVE'
+        self.send_command(cmd)
+        response = self.read_line()
+        if response != b'OK SAVE\n':
+            raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
 
 # ---------------------------------------------------------------------- #
 # Command Line Operations                                                #
