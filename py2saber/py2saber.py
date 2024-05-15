@@ -518,6 +518,7 @@ class Saber_Controller:
 
     def set_sounds_for_effect(self, effect: str, files: list[str]):
         '''Sets the sound list for a given effect.'''
+        self.log.info(f'Setting sound files for effect "{effect}"')
         self.log.debug(f'Setting sound files {str(files)} for effect "{effect}".')
         cmd = self._get_cmd_for_sound_effect(effect) + b'=' + ','.join(files).encode('utf-8')
         self.send_command(cmd)
@@ -544,6 +545,26 @@ class Saber_Controller:
         response = self.read_line()
         if response != b'OK SAVE\n':
             raise InvalidSaberResponseException(f'Command: {cmd}\nResponse: {response}')
+    
+    def auto_assign_sound_effects(self):
+        '''Attempt to automatically set sound effects based on the files currently on the saber.'''
+        effects = { # dictionary of effects and matching filename patterns
+            'on': 'POWERON',
+            'off': 'POWEROFF',
+            'hum': 'HUM',
+            'swing': 'SWING',
+            'clash': 'CLASH',
+            'smoothSwingA': 'SMOOTHSWINGH',
+            'smoothSwingB': 'SMOOTHSWINGL'
+        }
+        files = self.list_files_on_saber().keys() # Just the keys because we only need the filenames
+
+        self.log.info('Automatically assigning effects based on the default naming scheme.')
+
+        for effect in effects.keys():
+            list = [f for f in files if f.startswith(effects[effect])]
+            self.set_sounds_for_effect(effect, list)
+            time.sleep(1)
 
 # ---------------------------------------------------------------------- #
 # Command Line Operations                                                #
@@ -597,6 +618,13 @@ def main_func():
     parser.add_argument('--config',
                         action="store_true",
                         help='Display config.ini from saber')
+    auto_set_effects = parser.add_mutually_exclusive_group()
+    auto_set_effects.add_argument('-e', '--set-effects',
+                                  action='store_true',
+                                  help='Automatically assign sound files to effects based on the default file naming scheme. (default) (Can be used alone to set effects for the files currently on the saber)')
+    auto_set_effects.add_argument('-n', '--no-set-effects',
+                                  action='store_true',
+                                  help='Do not attempt to automatically assign sound files to effects after uploading')
     parser.add_argument('-t', '--command',
                         action='store', dest='cmd',
                         help='send literal command CMD to saber (NOTE: only use if you know what you are doing!)')
@@ -638,6 +666,10 @@ def main_func():
                 print(response)
                 response = sc.read_line().strip().decode('utf-8')
             return
+        
+        if args.set_effects and not args.files:
+            print('Automatically assigning sound files to effects based on the files currently on the saber.')
+            sc.auto_assign_sound_effects()
 
         if args.erase_all: # erase all files on saber
             print('\n*** This will erase ALL files on the saber! ***')
@@ -654,7 +686,7 @@ def main_func():
         if args.files: # write file(s) to saber
             # for Windows, we need to manually expand any wildcards in the input list
             if platform.system() == 'Windows':
-                log.info('Windows system detected. Expanding any wildcards in file names.')
+                log.debug('Windows system detected. Expanding any wildcards in file names.')
                 expanded_files = []
                 for file in args.files:
                     expanded_files.extend(glob.glob(file))
@@ -687,6 +719,10 @@ def main_func():
             except AnimaFileWriteException as e:
                 error_handler(e)
                 exit_code = 1
+            
+            if not args.no_set_effects:
+                print('Automatically assigning sound files to effects baesd on the default naming scheme.')
+                sc.auto_assign_sound_effects()
 
     except Exception as e:
         error_handler(e)
