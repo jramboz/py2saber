@@ -518,8 +518,9 @@ class Saber_Controller:
 
     def set_sounds_for_effect(self, effect: str, files: list[str]):
         '''Sets the sound list for a given effect.'''
-        self.log.info(f'Setting sound files for effect "{effect}"')
-        self.log.debug(f'Setting sound files {str(files)} for effect "{effect}".')
+        if not self.gui: print(f'Setting sound files for effect "{effect}".')
+        self.log.info(f'Setting sound files for effect "{effect}".')
+        self.log.debug(f'{effect}: {str(files)}.')
         cmd = self._get_cmd_for_sound_effect(effect) + b'=' + ','.join(files).encode('utf-8')
         self.send_command(cmd)
         response = self.read_line()
@@ -540,6 +541,7 @@ class Saber_Controller:
 
     def save_config(self):
         '''Save the current configuration to the saber.'''
+        self.log.debug(f'Saving configuration on saber.')
         cmd = b'SAVE'
         self.send_command(cmd)
         response = self.read_line()
