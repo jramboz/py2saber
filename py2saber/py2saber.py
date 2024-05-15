@@ -561,6 +561,7 @@ class Saber_Controller:
         }
         files = self.list_files_on_saber().keys() # Just the keys because we only need the filenames
 
+        if not self.gui: print('Automatically assigning effects based on the default naming scheme.')
         self.log.info('Automatically assigning effects based on the default naming scheme.')
 
         for effect in effects.keys():
@@ -670,7 +671,6 @@ def main_func():
             return
         
         if args.set_effects and not args.files:
-            print('Automatically assigning sound files to effects based on the files currently on the saber.')
             sc.auto_assign_sound_effects()
 
         if args.erase_all: # erase all files on saber
@@ -723,7 +723,6 @@ def main_func():
                 exit_code = 1
             
             if not args.no_set_effects:
-                print('Automatically assigning sound files to effects baesd on the default naming scheme.')
                 sc.auto_assign_sound_effects()
 
     except Exception as e:
