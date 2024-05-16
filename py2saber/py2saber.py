@@ -564,6 +564,13 @@ class Saber_Controller:
         if not self.gui: print('Automatically assigning effects based on the default naming scheme.')
         self.log.info('Automatically assigning effects based on the default naming scheme.')
 
+        # NXTs have problems if you try to set both regular Swing and SmoothSwing effects at the same time.
+        # EVOs don't seem to have this problem, but it's probably good practice not to set it anyway.
+        # So we search the file list, and if there are any SmoothSwing files, we remove the regular Swing.
+        if any("SMOOTHSWING" in file for file in files):
+            self.log.info('Detected SmoothSwing files. Ignoring any standard Swing files.')
+            files = [f for f in files if not f.startswith('SWING')]
+
         for effect in effects.keys():
             list = [f for f in files if f.startswith(effects[effect])]
             self.set_sounds_for_effect(effect, list)
