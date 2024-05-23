@@ -401,7 +401,7 @@ class Saber_Controller:
         current_files = self.list_files_on_saber()
         if self.anima_is_NXT() and not any("BEEP.RAW" in file for file in files) and 'BEEP.RAW' not in current_files.keys():
             self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
-            files.append(os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
+            files.insert(0, os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
 
         self.log.info(f'Preparing to write file(s) to saber: {files}')
         for file in files:
