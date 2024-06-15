@@ -721,12 +721,11 @@ def main_func():
             try:
                 sc.write_files_to_saber(verified_files)
                 print(f'\nSuccessfully wrote file{"s" if len(verified_files)>1 else ""} to saber: {verified_files}')
+                if not args.no_set_effects:
+                    sc.auto_assign_sound_effects()
             except AnimaFileWriteException as e:
                 error_handler(e)
                 exit_code = 1
-            
-            if not args.no_set_effects:
-                sc.auto_assign_sound_effects()
 
     except Exception as e:
         error_handler(e)
