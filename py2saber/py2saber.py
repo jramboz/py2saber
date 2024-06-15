@@ -14,6 +14,7 @@ Polaris Anima EVO Comms Protocol: https://github.com/LamaDiLuce/polaris-opencore
 '''
 
 import serial
+import serial.rs485
 import serial.tools.list_ports as lp
 import platform
 import re
@@ -99,8 +100,9 @@ class Saber_Controller:
             raise NoAnimaSaberException
         
         # Initialize the serial connection
-        self._ser = serial.Serial(self.port)
+        self._ser = serial.rs485.RS485(self.port)
         self._ser.apply_settings(self._SERIAL_SETTINGS)
+        self._ser.rs485_mode = serial.rs485.RS485Settings()
 
     def __del__(self):
         try: # Exception handling is necessary for the case that no saber was found during initialization. In this case, self._ser never gets created
@@ -134,11 +136,7 @@ class Saber_Controller:
         
         for port in port_list:
             if re.match(match_string, port.device):
-                # on macOS (Darwin), serial module returns /dev/cu.usbmodem*, but we should really use the corresponding /dev/tty.usbmodem*
-                if system == 'Darwin':
-                    serial_ports.append(re.sub('cu.', 'tty.', port.device))
-                else:
-                    serial_ports.append(port.device)
+                serial_ports.append(port.device)
         
         _log.info(f'Found {len(serial_ports)} port(s).')
         _log.debug(f'Found ports: {serial_ports}')
@@ -420,7 +418,6 @@ class Saber_Controller:
                     bytes_sent = 0
                     fname = os.path.basename(file)
                     report_every_n_bytes = self._CHUNK_SIZE*3 # How often to update the bytes sent display
-                    system = platform.system()
 
                     cmd = b'WR=' + fname.encode('utf-8') + b', ' + str(file_size).encode('utf-8') + b'\n'
                     self.send_command(cmd)
@@ -430,17 +427,16 @@ class Saber_Controller:
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
                     time.sleep(0.1)
                     while bytes:
-                        # if system != 'Windows':
-                        #     time.sleep(0.0001) # otherwise it sends too fast on mac (and linux?)
                         self._ser.write(bytes)
+                        #time.sleep(0.01)
+                        self._ser.flush()
                         bytes_sent += len(bytes)
                         bytes = binary_file.read(self._CHUNK_SIZE)
                         if bytes_sent % report_every_n_bytes == 0:
-                            print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
+                            print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}   ', end='', flush=True)
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
-                        time.sleep(0.01)
-                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}        ')
+                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}            ')
                     if self.gui: progress_callback.emit(bytes_sent)
                 else:
                     raise AnimaNotReadyException
@@ -450,7 +446,7 @@ class Saber_Controller:
                 raise AnimaFileWriteException(f'Error message: {response.strip().decode()}')
         
             self.log.info(f'Successfully wrote file to saber: {file}')
-            time.sleep(1)
+            time.sleep(5)
 
     @staticmethod
     def rgbw_to_byte_str(r: int, g: int, b:int, w: int):
