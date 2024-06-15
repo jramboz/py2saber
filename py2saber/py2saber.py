@@ -428,7 +428,7 @@ class Saber_Controller:
                     time.sleep(0.1)
                     while bytes:
                         self._ser.write(bytes)
-                        #time.sleep(0.01)
+                        if platform.system() == 'Windows': time.sleep(0.01)
                         self._ser.flush()
                         bytes_sent += len(bytes)
                         bytes = binary_file.read(self._CHUNK_SIZE)
