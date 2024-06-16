@@ -223,7 +223,7 @@ class Saber_Controller:
         # So now, if I get a blank response, I wait and try again until a response is received or timeout.
         if not response:
             tries = 1
-            max_tries = 3
+            max_tries = 2
             while not response and tries < max_tries:
                 time.sleep(0.5)
                 response = self._ser.readline()
@@ -428,7 +428,7 @@ class Saber_Controller:
                     time.sleep(0.1)
                     while bytes:
                         self._ser.write(bytes)
-                        if platform.system() == 'Windows': time.sleep(0.01)
+                        #if platform.system() == 'Windows': time.sleep(0.01)
                         self._ser.flush()
                         bytes_sent += len(bytes)
                         bytes = binary_file.read(self._CHUNK_SIZE)
