@@ -60,6 +60,16 @@ class InvalidSaberResponseException(DocDefaultException):
 class InvalidSoundEffectSpecifiedException(DocDefaultException):
     '''Invalid sound effect specified.'''
 
+def getHumanReadableSize(size,precision=2):
+    '''Takes a size in bytes and outputs human-readable string.'''
+    # taken from https://stackoverflow.com/a/32009595
+    suffixes=['B','KB','MB','GB','TB']
+    suffixIndex = 0
+    while size >= 1024 and suffixIndex < len(suffixes)-1:
+        suffixIndex += 1 #increment the index of the suffix
+        size = size/1024.0 #apply the division
+    return "%.*f%s"%(precision,size,suffixes[suffixIndex])
+
 class Saber_Controller:
     '''Controls communication with an OpenCore-based lightsaber.'''
     # Serial port communication settings
@@ -423,8 +433,9 @@ class Saber_Controller:
                     self.send_command(cmd)
                     response = self.read_line()
                     self.log.debug(f'Beginning byte stream for file {fname}')
+                    start_time = time.time()
                     bytes = binary_file.read(self._CHUNK_SIZE)
-                    print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}', end='', flush=True)
+                    print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} 0.00B/s', end='', flush=True)
                     time.sleep(0.1)
                     while bytes:
                         self._ser.write(bytes)
@@ -433,10 +444,10 @@ class Saber_Controller:
                         bytes_sent += len(bytes)
                         bytes = binary_file.read(self._CHUNK_SIZE)
                         if bytes_sent % report_every_n_bytes == 0:
-                            print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}   ', end='', flush=True)
+                            print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ', end='', flush=True)
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
-                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent}            ')
+                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           ')
                     if self.gui: progress_callback.emit(bytes_sent)
                 else:
                     raise AnimaNotReadyException
