@@ -110,9 +110,9 @@ class Saber_Controller:
             raise NoAnimaSaberException
         
         # Initialize the serial connection
-        self._ser = serial.rs485.RS485(self.port)
+        self._ser = serial.Serial(self.port)
         self._ser.apply_settings(self._SERIAL_SETTINGS)
-        self._ser.rs485_mode = serial.rs485.RS485Settings()
+        #self._ser.rs485_mode = serial.rs485.RS485Settings()
 
     def __del__(self):
         try: # Exception handling is necessary for the case that no saber was found during initialization. In this case, self._ser never gets created
@@ -406,10 +406,11 @@ class Saber_Controller:
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
         files.sort()
 
-        current_files = self.list_files_on_saber()
-        if self.anima_is_NXT() and not any("BEEP.RAW" in file for file in files) and 'BEEP.RAW' not in current_files.keys():
-            self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
-            files.insert(0, os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
+        if add_beep and self.anima_is_NXT():
+            current_files = self.list_files_on_saber()
+            if not any("BEEP.RAW" in file for file in files) and 'BEEP.RAW' not in current_files.keys():
+                self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
+                files.insert(0, os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
 
         self.log.info(f'Preparing to write file(s) to saber: {files}')
         for file in files:
@@ -434,15 +435,20 @@ class Saber_Controller:
                     response = self.read_line()
                     self.log.debug(f'Beginning byte stream for file {fname}')
                     start_time = time.time()
-                    bytes = binary_file.read(self._CHUNK_SIZE)
+                    bytes = binary_file.read(1)#self._CHUNK_SIZE)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} 0.00B/s', end='', flush=True)
                     time.sleep(0.1)
+                    # self._ser.close()
+                    # s = open(self._ser.port, 'a+b')
                     while bytes:
+                        # s.write(bytes)
+                        # s.flush()
+                        #time.sleep(0.0001)
                         self._ser.write(bytes)
-                        #if platform.system() == 'Windows': time.sleep(0.01)
+                        time.sleep(0.0001)
                         self._ser.flush()
                         bytes_sent += len(bytes)
-                        bytes = binary_file.read(self._CHUNK_SIZE)
+                        bytes = binary_file.read(1)#self._CHUNK_SIZE)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ', end='', flush=True)
                             if self.gui:
@@ -452,6 +458,8 @@ class Saber_Controller:
                 else:
                     raise AnimaNotReadyException
             
+            # s.close()
+            # self._ser.open()
             response = self.read_line()
             if not response == b'OK, Write Complete\n':
                 raise AnimaFileWriteException(f'Error message: {response.strip().decode()}')
@@ -635,6 +643,9 @@ def main_func():
     parser.add_argument('--config',
                         action="store_true",
                         help='Display config.ini from saber')
+    parser.add_argument('-N', '--no-beep',
+                        action="store_true",
+                        help="Do not automatically add BEEP.RAW to NXT sabers")
     auto_set_effects = parser.add_mutually_exclusive_group()
     auto_set_effects.add_argument('-e', '--set-effects',
                                   action='store_true',
@@ -730,7 +741,7 @@ def main_func():
             
             # send files to saber
             try:
-                sc.write_files_to_saber(verified_files)
+                sc.write_files_to_saber(verified_files, add_beep=not args.no_beep)
                 print(f'\nSuccessfully wrote file{"s" if len(verified_files)>1 else ""} to saber: {verified_files}')
                 if not args.no_set_effects:
                     sc.auto_assign_sound_effects()
