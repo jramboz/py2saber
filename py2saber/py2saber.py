@@ -406,11 +406,20 @@ class Saber_Controller:
         NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.'''
         files.sort()
 
-        if add_beep and self.anima_is_NXT():
-            current_files = self.list_files_on_saber()
-            if not any("BEEP.RAW" in file for file in files) and 'BEEP.RAW' not in current_files.keys():
-                self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
-                files.insert(0, os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
+        if self.anima_is_NXT():
+            beep_files = [file for file in files if "BEEP.RAW" in file]
+            # if a BEEP.RAW is specified, move it to the end of the list.
+            # NXTs seem to do better if BEEP.RAW is the last file uploaded
+            if beep_files:
+                for file in beep_files:
+                    self.log.debug(f'Moving file {file} to end of upload list.')
+                    files.remove(file)
+                    files.append(file)
+            elif add_beep:
+                current_files = self.list_files_on_saber()
+                if 'BEEP.RAW' not in current_files.keys():
+                    self.log.info('NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW.')
+                    files.append(os.path.join(basedir, 'OpenCore_OEM', 'BEEP.RAW'))
 
         self.log.info(f'Preparing to write file(s) to saber: {files}')
         for file in files:
@@ -435,20 +444,15 @@ class Saber_Controller:
                     response = self.read_line()
                     self.log.debug(f'Beginning byte stream for file {fname}')
                     start_time = time.time()
-                    bytes = binary_file.read(1)#self._CHUNK_SIZE)
+                    bytes = binary_file.read(1)
                     print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} 0.00B/s', end='', flush=True)
                     time.sleep(0.1)
-                    # self._ser.close()
-                    # s = open(self._ser.port, 'a+b')
                     while bytes:
-                        # s.write(bytes)
-                        # s.flush()
-                        #time.sleep(0.0001)
                         self._ser.write(bytes)
                         if platform.system() != 'Windows': time.sleep(0.0001)
                         self._ser.flush()
                         bytes_sent += len(bytes)
-                        bytes = binary_file.read(1)#self._CHUNK_SIZE)
+                        bytes = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ', end='', flush=True)
                             if self.gui:
@@ -458,8 +462,6 @@ class Saber_Controller:
                 else:
                     raise AnimaNotReadyException
             
-            # s.close()
-            # self._ser.open()
             response = self.read_line()
             if not response == b'OK, Write Complete\n':
                 raise AnimaFileWriteException(f'Error message: {response.strip().decode()}')
