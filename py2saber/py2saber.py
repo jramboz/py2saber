@@ -470,7 +470,7 @@ class Saber_Controller:
         
             self.log.info(f'Successfully wrote file to saber: {file}')
             self.log.info(f'Pausing {self._FILE_DELAY} seconds between file uploads.')
-            print(f'Pausing {self._FILE_DELAY} seconds between file uploads.', end='', flush=True)
+            print(f'Pausing {self._FILE_DELAY} seconds between file uploads', end='', flush=True)
             i = self._FILE_DELAY
             while i > 0:
                 if i < 1:
