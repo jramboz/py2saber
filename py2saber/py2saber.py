@@ -629,32 +629,35 @@ def main_func():
                                      description='A utility for working with OpenCore-based sabers, based on "sendtosaber" by Nuntis')
     parser.add_argument('-v', '--version',
                         action="version",
-                        help='display version and author information, then exit',
+                        help='Display version and author information, then exit',
                         version='%(prog)s v{ver} - Author(s): {auth} - {page}'.format(ver=script_version, auth=script_authors, page=script_repo))
     parser.add_argument('-i', '--info', 
                         action="store_true",
-                        help='read and display saber firmware version and serial number')
+                        help='Read and display saber firmware version and serial number')
     parser.add_argument('-l', '--list',
                         action="store_true",
-                        help='list all files on saber')
+                        help='List all files on saber')
     parser.add_argument('files', nargs="*",
-                        help='one or more files to upload to saber (separated by spaces)')
+                        help='One or more files to upload to saber (separated by spaces)')
     exit_behavior = parser.add_mutually_exclusive_group()
     exit_behavior.add_argument('-s', '--silent', 
                                action="store_true",
-                               help='exit without waiting for keypress (default)')
+                               help='Exit without waiting for keypress (default)')
     exit_behavior.add_argument('-w', '--wait', 
                                action="store_true",
-                               help='wait for keypress before exiting')
+                               help='Wait for keypress before exiting')
     parser.add_argument('-c', '--continue-on-file-not-found',
                         action="store_true",
-                        help='if one or more specified files do not exist, continue processing the remaining files (otherwise program will exit)')
+                        help='If one or more specified files do not exist, continue processing the remaining files (otherwise program will exit)')
     parser.add_argument('-D', '--debug',
                         action="store_true",
                         help='Show debugging information')
     parser.add_argument('--erase-all', 
                         action="store_true",
-                        help='erase all files on saber')
+                        help='Erase all files on saber')
+    parser.add_argument('-y', '--yes',
+                        action="store_true",
+                        help='Automatically answer "yes" when prompted for Y/N')
     parser.add_argument('--config',
                         action="store_true",
                         help='Display config.ini from saber')
@@ -670,7 +673,7 @@ def main_func():
                                   help='Do not attempt to automatically assign sound files to effects after uploading')
     parser.add_argument('-t', '--command',
                         action='store', dest='cmd',
-                        help='send literal command CMD to saber (NOTE: only use if you know what you are doing!)')
+                        help='Send literal command CMD to saber (NOTE: only use if you know what you are doing!)')
     
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -715,7 +718,10 @@ def main_func():
 
         if args.erase_all: # erase all files on saber
             print('\n*** This will erase ALL files on the saber! ***')
-            yorn = input('Do you want to continue? (Y/N): ')
+            if not args.yes:
+                yorn = input('Do you want to continue? (Y/N): ')
+            else:
+                yorn = 'y'
             if yorn.lower() == 'y' or yorn.lower() == 'yes':
                 # do the thing
                 print('Erasing all files on saber. This may take several minutes.')
