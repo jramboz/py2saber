@@ -86,6 +86,8 @@ class Saber_Controller:
     
     _CHUNK_SIZE = 128   # NXTs run into buffer problems if you try to send more than 128 bytes at a time
 
+    _FILE_DELAY = 5 # Number of seconds to pause between file uploads
+
     def __init__(self, port: str=None, gui: bool = False, loglevel: int = logging.ERROR) -> None:
         self.log = logging.getLogger('Saber_Controller')
         self.log.setLevel(loglevel)
@@ -467,7 +469,18 @@ class Saber_Controller:
                 raise AnimaFileWriteException(f'Error message: {response.strip().decode()}')
         
             self.log.info(f'Successfully wrote file to saber: {file}')
-            time.sleep(5)
+            self.log.info(f'Pausing {self._FILE_DELAY} seconds between file uploads.')
+            print(f'Pausing {self._FILE_DELAY} seconds between file uploads.', end='', flush=True)
+            i = self._FILE_DELAY
+            while i > 0:
+                if i < 1:
+                    time.sleep(i)
+                    i = 0
+                else:
+                    time.sleep(1)
+                    print(' .', end='', flush=True)
+                    i -= 1
+            print('\r', end='', flush=True)
 
     @staticmethod
     def rgbw_to_byte_str(r: int, g: int, b:int, w: int):
