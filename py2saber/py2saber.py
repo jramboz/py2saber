@@ -447,7 +447,7 @@ class Saber_Controller:
                     self.log.debug(f'Beginning byte stream for file {fname}')
                     start_time = time.time()
                     bytes = binary_file.read(1)
-                    print(f'{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} 0.00B/s', end='', flush=True)
+                    print(f'{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: 0.00B/s', end='', flush=True)
                     time.sleep(0.1)
                     while bytes:
                         self._ser.write(bytes)
@@ -456,10 +456,10 @@ class Saber_Controller:
                         bytes_sent += len(bytes)
                         bytes = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
-                            print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ', end='', flush=True)
+                            print(f'\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ', end='', flush=True)
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
-                    print(f'\r{fname} - Bytes sent: {bytes_sent} - Bytes remaining: {file_size - bytes_sent} {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           ')
+                    print(f'\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           ')
                     if self.gui: progress_callback.emit(bytes_sent)
                 else:
                     raise AnimaNotReadyException
