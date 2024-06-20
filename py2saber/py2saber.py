@@ -445,10 +445,10 @@ class Saber_Controller:
                     self.send_command(cmd)
                     response = self.read_line()
                     self.log.debug(f'Beginning byte stream for file {fname}')
-                    start_time = time.time()
                     bytes = binary_file.read(1)
                     print(f'{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: 0.00B/s', end='', flush=True)
-                    time.sleep(0.00005)
+                    #time.sleep(0.00005)
+                    start_time = time.time()
                     while bytes:
                         self._ser.write(bytes)
                         if platform.system() != 'Windows': time.sleep(0.00007) # serial drivers write too fast on mac and linux, have to manually force wait
