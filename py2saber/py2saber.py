@@ -451,7 +451,7 @@ class Saber_Controller:
                     start_time = time.time()
                     while bytes:
                         self._ser.write(bytes)
-                        if platform.system() != 'Windows': time.sleep(0.00007) # serial drivers write too fast on mac and linux, have to manually force wait
+                        if platform.system() != 'Windows': time.sleep(0.00008) # serial drivers write too fast on mac and linux, have to manually force wait
                         self._ser.flush()
                         bytes_sent += len(bytes)
                         bytes = binary_file.read(1)
