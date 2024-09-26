@@ -1,32 +1,40 @@
 # py2saber Copyright © 2023-2024 Jason Ramboz
 #
-# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
 #
-# You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License along with this program. If not, see
+# <https://www.gnu.org/licenses/>.
 
 """
 Python clone of Nuntis' sendtosaber command, with a few extensions.
 
-Original sendtosaber source: https://github.com/Nuntis-Spayz/Send-To-Saber
-Polaris Anima EVO Comms Protocol: https://github.com/LamaDiLuce/polaris-opencore/blob/master/Documentation/COMMS-PROTOCOL.md
+Original sendtosaber source:
+    https://github.com/Nuntis-Spayz/Send-To-Saber
+Polaris Anima EVO Comms Protocol:
+    https://github.com/LamaDiLuce/polaris-opencore/blob/master/Documentation/COMMS-PROTOCOL.md
 """
 
 
-import serial.tools.list_ports as lp
-import aioserial
+import argparse
 import asyncio
+import errno
+import glob
+import logging
+import os
 import platform
 import re
-import os
-import logging
 import sys
-import argparse
-import errno
-from getch import pause_exit
-import glob
 import time
+
+import aioserial
+import serial.tools.list_ports as lp
+from getch import pause_exit
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
@@ -47,7 +55,7 @@ class DocDefaultException(Exception):
 
 # Custom Exceptions
 class NoAnimaSaberException(DocDefaultException):
-    """No compatible Anima found. If an Anima is connected, try restarting it with the on/off switch. If the problem persists, try a different USB cable."""
+    """No compatible Anima found. If an Anima is connected, try restarting it with the on/off switch. If the problem persists, try a different USB cable."""  # noqa: E501
 
 
 class AnimaNotReadyException(DocDefaultException):
@@ -143,7 +151,9 @@ class Saber_Controller:
         self._ser.apply_settings(self._SERIAL_SETTINGS)
 
     def __del__(self):
-        try:  # Exception handling is necessary for the case that no saber was found during initialization. In this case, self._ser never gets created
+        try:
+            # Exception handling is necessary for the case that no saber was found during initialization.
+            # In this case, self._ser never gets created.
             self._ser.close()
         except Exception:
             pass
@@ -232,7 +242,7 @@ class Saber_Controller:
             ser.close()
             log.info(f"Found Polaris Anima EVO on port {port}")
             return True
-        except:
+        except Exception:
             log.debug(f"No Polaris Anima EVO found on port {port}")
             return False
 
@@ -252,7 +262,7 @@ class Saber_Controller:
                 self.log.debug(
                     f"Sending command to saber: {cmd[pos:pos+self._CHUNK_SIZE]}"
                 )
-                await self._ser.write_async(cmd[pos : pos + self._CHUNK_SIZE])
+                await self._ser.write_async(cmd[pos:pos + self._CHUNK_SIZE])
                 pos += self._CHUNK_SIZE
                 await asyncio.sleep(0.5)
 
@@ -318,7 +328,7 @@ class Saber_Controller:
     async def list_files_on_saber_as_bytes(self) -> bytes:
         """Returns the raw byte string reported by the saber LIST? command."""
         file_list = b""
-        self.log.info(f"Retrieving file list from saber.")
+        self.log.info("Retrieving file list from saber.")
 
         if await self.saber_is_ready():
             cmd = b"LIST?"
@@ -335,7 +345,8 @@ class Saber_Controller:
             raise AnimaNotReadyException
 
     async def list_files_on_saber(self) -> dict[str:int]:
-        """Returns a dictionary containing the files on the saber. Key is the filename, value is the file size in bytes."""
+        """Returns a dictionary containing the files on the saber.
+        Key is the filename, value is the file size in bytes."""
         file_dict = {}
         file_list = (await self.list_files_on_saber_as_bytes()).decode()
         regex = re.compile(r"^(\w+\.RAW)\s+(\d+)$", re.MULTILINE)
@@ -440,9 +451,11 @@ class Saber_Controller:
     ) -> None:
         """Write file(s) to saber. Expects a list of file names.
 
-        If add_beep is True (default), this method will automatically add the defauly BEEP.RAW for NXT sabers if no other BEEP.RAW is supplied or already on saber.
+        If add_beep is True (default), this method will automatically add the defauly BEEP.RAW for NXT sabers if no
+        other BEEP.RAW is supplied or already on saber.
 
-        NB: This method does no checking that files exist either on disk or saber. Please verify files before calling this method.
+        NB: This method does no checking that files exist either on disk or saber. Please verify files before calling
+        this method.
         """
         files.sort()
 
@@ -495,7 +508,7 @@ class Saber_Controller:
                     self.log.debug(f"Beginning byte stream for file {fname}")
                     bytes = binary_file.read(1)
                     print(
-                        f"{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: 0.00B/s",
+                        f"{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: 0.00B/s",  # noqa: E501
                         end="",
                         flush=True,
                     )
@@ -512,14 +525,14 @@ class Saber_Controller:
                         bytes = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(
-                                f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ",
+                                f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ",  # noqa: E501
                                 end="",
                                 flush=True,
                             )
                             if self.gui:
                                 progress_callback.emit(bytes_sent)
                     print(
-                        f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           "
+                        f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           "  # noqa: E501
                     )
                     if self.gui:
                         progress_callback.emit(bytes_sent)
@@ -609,7 +622,8 @@ class Saber_Controller:
 
     @staticmethod
     def _get_cmd_for_sound_effect(effect: str) -> bytes:
-        """returns the command header for the given sound effect. Calling function needs to either add '?' or '=' to the end."""
+        """returns the command header for the given sound effect.
+        Calling function needs to either add '?' or '=' to the end."""
         match effect:
             case "on":
                 return b"sON"
@@ -660,7 +674,7 @@ class Saber_Controller:
 
     async def save_config(self):
         """Save the current configuration to the saber."""
-        self.log.debug(f"Saving configuration on saber.")
+        self.log.debug("Saving configuration on saber.")
         cmd = b"SAVE"
         await self.send_command(cmd)
         response = await self.read_line()
@@ -765,7 +779,7 @@ async def main_func():
         "-c",
         "--continue-on-file-not-found",
         action="store_true",
-        help="If one or more specified files do not exist, continue processing the remaining files (otherwise program will exit)",
+        help="If one or more specified files do not exist, continue processing the remaining files (otherwise program will exit)",  # noqa: E501
     )
     parser.add_argument(
         "-D", "--debug", action="store_true", help="Show debugging information"
@@ -793,7 +807,7 @@ async def main_func():
         "-e",
         "--set-effects",
         action="store_true",
-        help="Automatically assign sound files to effects based on the default file naming scheme. (default) (Can be used alone to set effects for the files currently on the saber)",
+        help="Automatically assign sound files to effects based on the default file naming scheme. (default) (Can be used alone to set effects for the files currently on the saber)",  # noqa: E501
     )
     auto_set_effects.add_argument(
         "-n",
@@ -884,7 +898,7 @@ async def main_func():
                 log.debug(f"Expanded files: {args.files}")
 
             print(
-                f'\nPreparing to upload file{"s" if len(args.files)>1 else ""} to saber.'
+                f'\nPreparing to upload file{"s" if len(args.files) > 1 else ""} to saber.'
             )
 
             # verify that files exist
@@ -910,7 +924,7 @@ async def main_func():
             try:
                 sc.write_files_to_saber(verified_files, add_beep=not args.no_beep)
                 print(
-                    f'\nSuccessfully wrote file{"s" if len(verified_files)>1 else ""} to saber: {verified_files}'
+                    f'\nSuccessfully wrote file{"s" if len(verified_files) > 1 else ""} to saber: {verified_files}'
                 )
                 if not args.no_set_effects:
                     sc.auto_assign_sound_effects()
