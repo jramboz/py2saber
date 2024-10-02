@@ -443,7 +443,7 @@ class Saber_Controller:
             return True
         return False
 
-    def write_files_to_saber(
+    async def write_files_to_saber(
         self,
         files: list[str],
         progress_callback: callable = None,
@@ -458,8 +458,7 @@ class Saber_Controller:
         this method.
         """
         files.sort()
-
-        if self.anima_is_NXT():
+        if await self.anima_is_NXT():
             beep_files = [file for file in files if "BEEP.RAW" in file]
             # if a BEEP.RAW is specified, move it to the end of the list.
             # NXTs seem to do better if BEEP.RAW is the last file uploaded
@@ -469,7 +468,7 @@ class Saber_Controller:
                     files.remove(file)
                     files.append(file)
             elif add_beep:
-                current_files = self.list_files_on_saber()
+                current_files = await self.list_files_on_saber()
                 if "BEEP.RAW" not in current_files.keys():
                     self.log.info(
                         "NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW."
@@ -483,13 +482,13 @@ class Saber_Controller:
             # Check for enough free space
             file_size = os.path.getsize(file)
             self.log.debug(f"File size: {file_size}")
-            free_space = self.get_free_space()
+            free_space = await self.get_free_space()
             if free_space < file_size:
                 raise NotEnoughFreeSpaceException(f"File: {file}")
 
             # Write the file
             with open(file, mode="rb") as binary_file:
-                if self.saber_is_ready():
+                if await self.saber_is_ready():
                     bytes_sent = 0
                     fname = os.path.basename(file)
                     report_every_n_bytes = (
@@ -503,8 +502,8 @@ class Saber_Controller:
                         + str(file_size).encode("utf-8")
                         + b"\n"
                     )
-                    self.send_command(cmd)
-                    response = self.read_line()
+                    await self.send_command(cmd)
+                    response = await self.read_line()
                     self.log.debug(f"Beginning byte stream for file {fname}")
                     bytes = binary_file.read(1)
                     print(
@@ -512,13 +511,12 @@ class Saber_Controller:
                         end="",
                         flush=True,
                     )
-                    time.sleep(0.000087)
+                    await asyncio.sleep(0.000087)
                     start_time = time.time()
                     while bytes:
-                        self._ser.write(bytes)
-                        self._ser.flush()
+                        await self._ser.write_async(bytes)
                         if platform.system() != "Windows":
-                            time.sleep(
+                            await asyncio.sleep(
                                 0.000087
                             )  # serial drivers write too fast on mac and linux, have to manually force wait
                         bytes_sent += len(bytes)
@@ -539,7 +537,7 @@ class Saber_Controller:
                 else:
                     raise AnimaNotReadyException
 
-            response = self.read_line()
+            response = await self.read_line()
             if not response == b"OK, Write Complete\n":
                 raise AnimaFileWriteException(
                     f"Error message: {response.strip().decode()}"
@@ -555,10 +553,10 @@ class Saber_Controller:
             i = self._FILE_DELAY
             while i > 0:
                 if i < 1:
-                    time.sleep(i)
+                    await asyncio.sleep(i)
                     i = 0
                 else:
-                    time.sleep(1)
+                    await asyncio.sleep(1)
                     print(" .", end="", flush=True)
                     i -= 1
             print("\r", end="", flush=True)
@@ -922,12 +920,12 @@ async def main_func():
 
             # send files to saber
             try:
-                sc.write_files_to_saber(verified_files, add_beep=not args.no_beep)
+                await sc.write_files_to_saber(verified_files, add_beep=not args.no_beep)
                 print(
                     f'\nSuccessfully wrote file{"s" if len(verified_files) > 1 else ""} to saber: {verified_files}'
                 )
                 if not args.no_set_effects:
-                    sc.auto_assign_sound_effects()
+                    await sc.auto_assign_sound_effects()
             except AnimaFileWriteException as e:
                 error_handler(e)
                 exit_code = 1
