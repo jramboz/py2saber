@@ -26,6 +26,7 @@ import errno
 from getch import pause_exit
 import glob
 import time
+from deprecated import deprecated
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
@@ -102,14 +103,11 @@ class Saber_Controller:
                 raise NoAnimaSaberException
         # Otherwise, use the first port found with an OpenCore saber connected
         else:
-            ports = Saber_Controller.get_ports()
-            for p in ports:
-                if Saber_Controller.port_is_anima(p):
-                    self.port = p
-                    break
-
-        if not self.port:
-            raise NoAnimaSaberException
+            ports = Saber_Controller.get_anima_ports()
+            if ports:
+                self.port = ports[0]
+            else:  # No Anima was found
+                raise NoAnimaSaberException
         
         # Initialize the serial connection
         self._ser = serial.Serial(self.port)
@@ -123,8 +121,10 @@ class Saber_Controller:
             pass
 
     @staticmethod
+    @deprecated(version='0.18.0', reason="Use get_anima_ports() instead")
     def get_ports() -> list[str]:
-        '''Returns available serial ports as list of strings.'''
+        '''DEPRECATED: Use get_anima_ports() instead.
+        Returns available serial ports as list of strings.'''
         serial_ports = []
         match_string = r''
 
@@ -153,6 +153,19 @@ class Saber_Controller:
         _log.info(f'Found {len(serial_ports)} port(s).')
         _log.debug(f'Found ports: {serial_ports}')
         return serial_ports
+
+    @staticmethod
+    def get_anima_ports() -> list[str]:
+        '''Returns a list of found ports with an Anima connected.
+        If no Anima is found, it will return an empty list.'''
+        anima_ports = []
+        # Search by VID and PID.
+        # EVO: VID=16C0 PID=0483
+        # NXT: VID=0483 PID=5740
+        ports = lp.grep(r"VID:PID=(16C0|0483):(0483|5740)")
+        for port in ports:
+            anima_ports.append(port.device)
+        return anima_ports
 
     @staticmethod
     def port_is_anima(port: str) -> bool:
