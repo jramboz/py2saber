@@ -178,44 +178,54 @@ class Saber_Controller:
             log = logging.getLogger('Saber_Controller')
 
             log.debug(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
-            ser = serial.Serial(port)
-            ser.apply_settings(Saber_Controller._SERIAL_SETTINGS)
+            # Old Checking Logic
+            # ------------------
+            # ser = serial.Serial(port)
+            # ser.apply_settings(Saber_Controller._SERIAL_SETTINGS)
             
-            # Checking logic (based on Nuntis' script):
-            # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
-            # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
-            # Send 'WR?'. Return false if empty or response doesn't sart with 'OK, Write'.
-            # Otherwise return true.
-            log.debug('Sending command: V?')
-            ser.write(b'V?\n')
-            response = ser.readline()
-            log.debug(f'Received response: {response}')
-            if not response or response.startswith(b'V=1.'):
-                ser.close()
-                log.info(f'No Polaris Anima EVO found on port {port}')
-                return False
+            # # Checking logic (based on Nuntis' script):
+            # # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
+            # # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
+            # # Send 'WR?'. Return false if empty or response doesn't sart with 'OK, Write'.
+            # # Otherwise return true.
+            # log.debug('Sending command: V?')
+            # ser.write(b'V?\n')
+            # response = ser.readline()
+            # log.debug(f'Received response: {response}')
+            # if not response or response.startswith(b'V=1.'):
+            #     ser.close()
+            #     log.info(f'No Polaris Anima EVO found on port {port}')
+            #     return False
             
-            log.debug('Sending command: S?')
-            ser.write(b'S?\n')
-            response = ser.readline()
-            log.debug(f'Received response: {response}')
-            if not response or not response.startswith(b'S='):
-                ser.close()
-                log.debug(f'No Polaris Anima EVO found on port {port}')
-                return False
+            # log.debug('Sending command: S?')
+            # ser.write(b'S?\n')
+            # response = ser.readline()
+            # log.debug(f'Received response: {response}')
+            # if not response or not response.startswith(b'S='):
+            #     ser.close()
+            #     log.debug(f'No Polaris Anima EVO found on port {port}')
+            #     return False
             
-            log.debug('Sending command: WR?')
-            ser.write(b'WR?\n')
-            response = ser.readline()
-            log.debug(f'Received response: {response}')
-            if not response or not response.startswith(b'OK, Write'):
-                ser.close()
-                log.debug(f'No Polaris Anima EVO found on port {port}')
-                return False
+            # log.debug('Sending command: WR?')
+            # ser.write(b'WR?\n')
+            # response = ser.readline()
+            # log.debug(f'Received response: {response}')
+            # if not response or not response.startswith(b'OK, Write'):
+            #     ser.close()
+            #     log.debug(f'No Polaris Anima EVO found on port {port}')
+            #     return False
 
-            ser.close()
-            log.info(f'Found Polaris Anima EVO on port {port}')
-            return True
+            # ser.close()
+            # log.info(f'Found Polaris Anima EVO on port {port}')
+            # return True
+
+            # New Checking Logic - check VID and PID of device
+            # ------------------------------------------------
+            ports = lp.grep(port)
+            p = next(ports)  # Will raise a StopIteration exception if no port found
+            if (p.vid == 0x16C0 and p.pid == 0x0483) or (p.vid == 0x483 and p.pid == 0x5740):
+                return True
+            return False
         except:
             log.debug(f'No Polaris Anima EVO found on port {port}')
             return False
