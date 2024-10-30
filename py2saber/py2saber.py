@@ -26,7 +26,6 @@ import errno
 from getch import pause_exit
 import glob
 import time
-from deprecated import deprecated
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
