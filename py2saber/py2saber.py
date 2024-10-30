@@ -121,7 +121,6 @@ class Saber_Controller:
             pass
 
     @staticmethod
-    @deprecated(version='0.18.1', reason="Use get_anima_ports() instead")
     def get_ports() -> list[str]:
         '''DEPRECATED: Use get_anima_ports() instead.
         Returns available serial ports as list of strings.'''
