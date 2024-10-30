@@ -30,7 +30,7 @@ from deprecated import deprecated
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = '0.18.0'
+script_version = '0.18.1'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 
@@ -121,7 +121,7 @@ class Saber_Controller:
             pass
 
     @staticmethod
-    @deprecated(version='0.18.0', reason="Use get_anima_ports() instead")
+    @deprecated(version='0.18.1', reason="Use get_anima_ports() instead")
     def get_ports() -> list[str]:
         '''DEPRECATED: Use get_anima_ports() instead.
         Returns available serial ports as list of strings.'''
