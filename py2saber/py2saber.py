@@ -35,13 +35,13 @@ import time
 import aioserial
 import serial.tools.list_ports as lp
 from getch import pause_exit
+from deprecated import deprecated
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = "0.17.0"
-script_authors = "Jason Ramboz"
-script_repo = "https://github.com/jramboz/py2saber"
-
+script_version = '0.18.1'
+script_authors = 'Jason Ramboz'
+script_repo = 'https://github.com/jramboz/py2saber'
 
 # adapted from https://stackoverflow.com/a/66491013
 class DocDefaultException(Exception):
@@ -93,20 +93,18 @@ class Saber_Controller:
     """Controls communication with an OpenCore-based lightsaber."""
 
     # Serial port communication settings
-    _SERIAL_SETTINGS = {
-        "baudrate": 115200,
-        "bytesize": 8,
-        "parity": "N",
-        "stopbits": 1,
-        "xonxoff": False,
-        "dsrdtr": False,
-        "rtscts": False,
-        "timeout": 3,
-        "write_timeout": None,
-        "inter_byte_timeout": None,
-    }
-
-    _CHUNK_SIZE = 128  # NXTs run into buffer problems if you try to send more than 128 bytes at a time
+    _SERIAL_SETTINGS = {'baudrate': 1152000, 
+                        'bytesize': 8, 
+                        'parity': 'N', 
+                        'stopbits': 1, 
+                        'xonxoff': False, 
+                        'dsrdtr': False, 
+                        'rtscts': False, 
+                        'timeout': 3, 
+                        'write_timeout': None, 
+                        'inter_byte_timeout': None}
+    
+    _CHUNK_SIZE = 128   # NXTs run into buffer problems if you try to send more than 128 bytes at a time
 
     _FILE_DELAY = 5  # Number of seconds to pause between file uploads
 
@@ -137,15 +135,12 @@ class Saber_Controller:
                 raise NoAnimaSaberException
         # Otherwise, use the first port found with an OpenCore saber connected
         else:
-            ports = await Saber_Controller.get_ports()
-            for p in ports:
-                if await Saber_Controller.port_is_anima(p):
-                    self.port = p
-                    break
-
-        if not self.port:
-            raise NoAnimaSaberException
-
+            ports = Saber_Controller.get_anima_ports()
+            if ports:
+                self.port = ports[0]
+            else:  # No Anima was found
+                raise NoAnimaSaberException
+        
         # Initialize the serial connection
         self._ser = aioserial.AioSerial(self.port)
         self._ser.apply_settings(self._SERIAL_SETTINGS)
@@ -159,8 +154,10 @@ class Saber_Controller:
             pass
 
     @staticmethod
+    @deprecated(version='0.18.1', reason="Use get_anima_ports() instead")
     async def get_ports() -> list[str]:
-        """Returns available serial ports as list of strings."""
+        """DEPRECATED: Use get_anima_ports() instead.
+        Returns available serial ports as list of strings."""
         serial_ports = []
         match_string = r""
 
@@ -193,6 +190,19 @@ class Saber_Controller:
         return serial_ports
 
     @staticmethod
+    def get_anima_ports() -> list[str]:
+        '''Returns a list of found ports with an Anima connected.
+        If no Anima is found, it will return an empty list.'''
+        anima_ports = []
+        # Search by VID and PID.
+        # EVO: VID=16C0 PID=0483
+        # NXT: VID=0483 PID=5740
+        ports = lp.grep(r"VID:PID=(16C0|0483):(0483|5740)")
+        for port in ports:
+            anima_ports.append(port.device)
+        return anima_ports
+
+    @staticmethod
     async def port_is_anima(port: str) -> bool:
         """Checks to see if the device attached to port is a Polaris Anima EVO.
         Returns True if an Anima is found, False otherwise.
@@ -203,47 +213,57 @@ class Saber_Controller:
         try:
             log = logging.getLogger("Saber_Controller")
 
-            log.debug(f"Checking if decvice on port {port} is a Polaris Anima EVO.")
-            ser = aioserial.AioSerial(port)
-            ser.apply_settings(Saber_Controller._SERIAL_SETTINGS)
+            log.debug(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
+            # Old Checking Logic
+            # ------------------
+            # ser = serial.Serial(port)
+            # ser.apply_settings(Saber_Controller._SERIAL_SETTINGS)
+            
+            # # Checking logic (based on Nuntis' script):
+            # # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
+            # # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
+            # # Send 'WR?'. Return false if empty or response doesn't sart with 'OK, Write'.
+            # # Otherwise return true.
+            # log.debug('Sending command: V?')
+            # ser.write(b'V?\n')
+            # response = ser.readline()
+            # log.debug(f'Received response: {response}')
+            # if not response or response.startswith(b'V=1.'):
+            #     ser.close()
+            #     log.info(f'No Polaris Anima EVO found on port {port}')
+            #     return False
+            
+            # log.debug('Sending command: S?')
+            # ser.write(b'S?\n')
+            # response = ser.readline()
+            # log.debug(f'Received response: {response}')
+            # if not response or not response.startswith(b'S='):
+            #     ser.close()
+            #     log.debug(f'No Polaris Anima EVO found on port {port}')
+            #     return False
+            
+            # log.debug('Sending command: WR?')
+            # ser.write(b'WR?\n')
+            # response = ser.readline()
+            # log.debug(f'Received response: {response}')
+            # if not response or not response.startswith(b'OK, Write'):
+            #     ser.close()
+            #     log.debug(f'No Polaris Anima EVO found on port {port}')
+            #     return False
 
-            # Checking logic (based on Nuntis' script):
-            # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
-            # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
-            # Send 'WR?'. Return false if empty or response doesn't sart with 'OK, Write'.
-            # Otherwise return true.
-            log.debug("Sending command: V?")
-            await ser.write_async(b"V?\n")
-            response = await ser.readline_async()
-            log.debug(f"Received response: {response}")
-            if not response or response.startswith(b"V=1."):
-                ser.close()
-                log.info(f"No Polaris Anima EVO found on port {port}")
-                return False
+            # ser.close()
+            # log.info(f'Found Polaris Anima EVO on port {port}')
+            # return True
 
-            log.debug("Sending command: S?")
-            await ser.write_async(b"S?\n")
-            response = await ser.readline_async()
-            log.debug(f"Received response: {response}")
-            if not response or not response.startswith(b"S="):
-                ser.close()
-                log.debug(f"No Polaris Anima EVO found on port {port}")
-                return False
-
-            log.debug("Sending command: WR?")
-            await ser.write_async(b"WR?\n")
-            response = await ser.readline_async()
-            log.debug(f"Received response: {response}")
-            if not response or not response.startswith(b"OK, Write"):
-                ser.close()
-                log.debug(f"No Polaris Anima EVO found on port {port}")
-                return False
-
-            ser.close()
-            log.info(f"Found Polaris Anima EVO on port {port}")
-            return True
-        except Exception:
-            log.debug(f"No Polaris Anima EVO found on port {port}")
+            # New Checking Logic - check VID and PID of device
+            # ------------------------------------------------
+            ports = lp.grep(port)
+            p = next(ports)  # Will raise a StopIteration exception if no port found
+            if (p.vid == 0x16C0 and p.pid == 0x0483) or (p.vid == 0x483 and p.pid == 0x5740):
+                return True
+            return False
+        except:
+            log.debug(f'No Polaris Anima EVO found on port {port}')
             return False
 
     async def send_command(self, cmd: bytes) -> None:

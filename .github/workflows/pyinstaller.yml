@@ -13,7 +13,7 @@ on:
             - This file will be used to create executable.
             - If .py: Generated spec file will also be uploaded as artifact
         required: true
-        default: 'py2saber.py'
+        default: 'py2saber-win.spec'
       requirements:
         description: path of your requirements.txt file
         default: 'build-requirements.txt'
@@ -45,16 +45,16 @@ jobs:
           options: ${{ inputs.options }}
           python_arch: ${{ inputs.python_arch }}
           upload_exe_with_name: 'py2saber-win'
-  pyinstaller-build-mac:
-    runs-on: macos-13
-    steps:
-      - name: PyInstaller Action
-        uses: Martin005/pyinstaller-action@v1.2.0
-        with:
-          python_ver: ${{ inputs.python_ver }}
-          spec: ${{ inputs.spec }}
-          requirements: ${{ inputs.requirements }}
-          options: ${{ inputs.options }}
-          python_arch: ${{ inputs.python_arch }}
-          upload_exe_with_name: 'py2saber-mac'
+  #pyinstaller-build-mac:
+  #  runs-on: macos-13
+  #  steps:
+  #    - name: PyInstaller Action
+  #      uses: Martin005/pyinstaller-action@v1.2.0
+  #      with:
+  #        python_ver: ${{ inputs.python_ver }}
+  #        spec: ${{ inputs.spec }}
+  #        requirements: ${{ inputs.requirements }}
+  #        options: ${{ inputs.options }}
+  #        python_arch: ${{ inputs.python_arch }}
+  #        upload_exe_with_name: 'py2saber-mac'
   
