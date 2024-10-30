@@ -74,7 +74,7 @@ def getHumanReadableSize(size,precision=2):
 class Saber_Controller:
     '''Controls communication with an OpenCore-based lightsaber.'''
     # Serial port communication settings
-    _SERIAL_SETTINGS = {'baudrate': 115200, 
+    _SERIAL_SETTINGS = {'baudrate': 1152000, 
                         'bytesize': 8, 
                         'parity': 'N', 
                         'stopbits': 1, 
@@ -476,7 +476,7 @@ class Saber_Controller:
                         self._ser.write(bytes)
                         self._ser.flush()
                         if platform.system() != 'Windows': time.sleep(0.000087) # serial drivers write too fast on mac and linux, have to manually force wait
-                        bytes_sent += len(bytes)
+                        bytes_sent += 1#len(bytes)
                         bytes = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(f'\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ', end='', flush=True)
