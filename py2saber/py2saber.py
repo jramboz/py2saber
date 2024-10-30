@@ -30,7 +30,7 @@ from deprecated import deprecated
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = '0.18.2'
+script_version = '0.18.3'
 script_authors = 'Jason Ramboz'
 script_repo = 'https://github.com/jramboz/py2saber'
 

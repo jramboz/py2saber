@@ -3,4 +3,4 @@ from .py2saber import NoAnimaSaberException, NotEnoughFreeSpaceException, AnimaF
 
 __all__ = ["py2saber"]
 
-__version__ = "0.18.2"
+__version__ = "0.18.3"
