@@ -35,7 +35,6 @@ import time
 import aioserial
 import serial.tools.list_ports as lp
 from getch import pause_exit
-from deprecated import deprecated
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
@@ -154,7 +153,6 @@ class Saber_Controller:
             pass
 
     @staticmethod
-    @deprecated(version='0.18.1', reason="Use get_anima_ports() instead")
     async def get_ports() -> list[str]:
         """DEPRECATED: Use get_anima_ports() instead.
         Returns available serial ports as list of strings."""
