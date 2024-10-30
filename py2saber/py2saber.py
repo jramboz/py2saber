@@ -135,7 +135,7 @@ class Saber_Controller:
                 raise NoAnimaSaberException
         # Otherwise, use the first port found with an OpenCore saber connected
         else:
-            ports = Saber_Controller.get_anima_ports()
+            ports = await Saber_Controller.get_anima_ports()
             if ports:
                 self.port = ports[0]
             else:  # No Anima was found
@@ -190,7 +190,7 @@ class Saber_Controller:
         return serial_ports
 
     @staticmethod
-    def get_anima_ports() -> list[str]:
+    async def get_anima_ports() -> list[str]:
         '''Returns a list of found ports with an Anima connected.
         If no Anima is found, it will return an empty list.'''
         anima_ports = []
