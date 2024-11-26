@@ -460,9 +460,12 @@ class Saber_Controller:
 
     def anima_is_NXT(self) -> bool:
         """Returns True if the attached saber is an NXT, False if not."""
+        self.log.debug("Checking whether Anima is NXT...")
         info = self.get_saber_info()
         if info["version"][:4] == "NXT_":
+            self.log.debug("Anima is NXT.")
             return True
+        self.log.debug("Anima is not NXT.")
         return False
 
     def write_files_to_saber(
@@ -481,7 +484,10 @@ class Saber_Controller:
         """
         files.sort()
 
+        SLEEP_TIME = 0.0
+
         if self.anima_is_NXT():
+            # --- Manage BEEP file ---
             beep_files = [file for file in files if "BEEP.RAW" in file]
             # if a BEEP.RAW is specified, move it to the end of the list.
             # NXTs seem to do better if BEEP.RAW is the last file uploaded
@@ -497,6 +503,12 @@ class Saber_Controller:
                         "NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW."
                     )
                     files.append(os.path.join(basedir, "OpenCore_OEM", "BEEP.RAW"))
+
+            # --- Manage NXT timing ---
+            # For NXTs on non-Windows systems, we need to manually delay between bytes - still TBD why
+            if platform.system() != "Windows":
+                self.log.info("Anima NXT detected on non-Windows system. Manually managing upload speed.")
+                SLEEP_TIME = 0.000087
 
         self.log.info(f"Preparing to write file(s) to saber: {files}")
         for file in files:
@@ -534,15 +546,12 @@ class Saber_Controller:
                         end="",
                         flush=True,
                     )
-                    time.sleep(0.000087)
+                    time.sleep(SLEEP_TIME)
                     start_time = time.time()
                     while bytes:
                         self._ser.write(bytes)
                         self._ser.flush()
-                        if platform.system() != "Windows":
-                            time.sleep(
-                                0.000087
-                            )  # serial drivers write too fast on mac and linux, have to manually force wait
+                        time.sleep(SLEEP_TIME)  # will be 0.0 if EVO
                         bytes_sent += 1  # len(bytes)
                         bytes = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
