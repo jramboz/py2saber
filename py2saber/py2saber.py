@@ -38,9 +38,10 @@ from getch import pause_exit
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = '0.18.2'
-script_authors = 'Jason Ramboz'
-script_repo = 'https://github.com/jramboz/py2saber'
+script_version = "0.18.4"
+script_authors = "Jason Ramboz"
+script_repo = "https://github.com/jramboz/py2saber"
+
 
 # adapted from https://stackoverflow.com/a/66491013
 class DocDefaultException(Exception):
@@ -54,7 +55,8 @@ class DocDefaultException(Exception):
 
 # Custom Exceptions
 class NoAnimaSaberException(DocDefaultException):
-    """No compatible Anima found. If an Anima is connected, try restarting it with the on/off switch. If the problem persists, try a different USB cable."""  # noqa: E501
+    """No compatible Anima found. If an Anima is connected, try restarting it with the on/off switch.
+    If the problem persists, try a different USB cable."""
 
 
 class AnimaNotReadyException(DocDefaultException):
@@ -92,18 +94,20 @@ class Saber_Controller:
     """Controls communication with an OpenCore-based lightsaber."""
 
     # Serial port communication settings
-    _SERIAL_SETTINGS = {'baudrate': 1152000, 
-                        'bytesize': 8, 
-                        'parity': 'N', 
-                        'stopbits': 1, 
-                        'xonxoff': False, 
-                        'dsrdtr': False, 
-                        'rtscts': False, 
-                        'timeout': 3, 
-                        'write_timeout': None, 
-                        'inter_byte_timeout': None}
-    
-    _CHUNK_SIZE = 128   # NXTs run into buffer problems if you try to send more than 128 bytes at a time
+    _SERIAL_SETTINGS = {
+        "baudrate": 1152000,
+        "bytesize": 8,
+        "parity": "N",
+        "stopbits": 1,
+        "xonxoff": False,
+        "dsrdtr": False,
+        "rtscts": False,
+        "timeout": 3,
+        "write_timeout": None,
+        "inter_byte_timeout": None,
+    }
+
+    _CHUNK_SIZE = 128  # NXTs run into buffer problems if you try to send more than 128 bytes at a time
 
     _FILE_DELAY = 5  # Number of seconds to pause between file uploads
 
@@ -139,15 +143,15 @@ class Saber_Controller:
                 self.port = ports[0]
             else:  # No Anima was found
                 raise NoAnimaSaberException
-        
+
         # Initialize the serial connection
         self._ser = aioserial.AioSerial(self.port)
         self._ser.apply_settings(self._SERIAL_SETTINGS)
 
     def __del__(self):
+        # Exception handling is necessary for the case that no saber was found during initialization.
+        # In this case, self._ser never gets created.
         try:
-            # Exception handling is necessary for the case that no saber was found during initialization.
-            # In this case, self._ser never gets created.
             self._ser.close()
         except Exception:
             pass
@@ -189,8 +193,8 @@ class Saber_Controller:
 
     @staticmethod
     async def get_anima_ports() -> list[str]:
-        '''Returns a list of found ports with an Anima connected.
-        If no Anima is found, it will return an empty list.'''
+        """Returns a list of found ports with an Anima connected.
+        If no Anima is found, it will return an empty list."""
         anima_ports = []
         # Search by VID and PID.
         # EVO: VID=16C0 PID=0483
@@ -211,12 +215,12 @@ class Saber_Controller:
         try:
             log = logging.getLogger("Saber_Controller")
 
-            log.debug(f'Checking if decvice on port {port} is a Polaris Anima EVO.')
+            log.debug(f"Checking if decvice on port {port} is a Polaris Anima EVO.")
             # Old Checking Logic
             # ------------------
             # ser = serial.Serial(port)
             # ser.apply_settings(Saber_Controller._SERIAL_SETTINGS)
-            
+
             # # Checking logic (based on Nuntis' script):
             # # Send 'V?'. Return false if no response or respond with a 1.x version. Otherwise continue.
             # # Send 'S?'. Return false if no response or response doesn't start with 'S='. Otherwise continue.
@@ -230,7 +234,7 @@ class Saber_Controller:
             #     ser.close()
             #     log.info(f'No Polaris Anima EVO found on port {port}')
             #     return False
-            
+
             # log.debug('Sending command: S?')
             # ser.write(b'S?\n')
             # response = ser.readline()
@@ -239,7 +243,7 @@ class Saber_Controller:
             #     ser.close()
             #     log.debug(f'No Polaris Anima EVO found on port {port}')
             #     return False
-            
+
             # log.debug('Sending command: WR?')
             # ser.write(b'WR?\n')
             # response = ser.readline()
@@ -257,11 +261,13 @@ class Saber_Controller:
             # ------------------------------------------------
             ports = lp.grep(port)
             p = next(ports)  # Will raise a StopIteration exception if no port found
-            if (p.vid == 0x16C0 and p.pid == 0x0483) or (p.vid == 0x483 and p.pid == 0x5740):
+            if (p.vid == 0x16C0 and p.pid == 0x0483) or (
+                p.vid == 0x483 and p.pid == 0x5740
+            ):
                 return True
             return False
-        except:
-            log.debug(f'No Polaris Anima EVO found on port {port}')
+        except Exception:
+            log.debug(f"No Polaris Anima EVO found on port {port}")
             return False
 
     async def send_command(self, cmd: bytes) -> None:
@@ -456,9 +462,12 @@ class Saber_Controller:
 
     async def anima_is_NXT(self) -> bool:
         """Returns True if the attached saber is an NXT, False if not."""
+        self.log.debug("Checking whether Anima is NXT...")
         info = await self.get_saber_info()
         if info["version"][:4] == "NXT_":
+            self.log.debug("Anima is NXT.")
             return True
+        self.log.debug("Anima is not NXT.")
         return False
 
     async def write_files_to_saber(
@@ -476,7 +485,10 @@ class Saber_Controller:
         this method.
         """
         files.sort()
+
+        SLEEP_TIME = 0.0
         if await self.anima_is_NXT():
+            # --- Manage BEEP file ---
             beep_files = [file for file in files if "BEEP.RAW" in file]
             # if a BEEP.RAW is specified, move it to the end of the list.
             # NXTs seem to do better if BEEP.RAW is the last file uploaded
@@ -492,6 +504,12 @@ class Saber_Controller:
                         "NXT saber detected and no BEEP.RAW provided. Adding default BEEP.RAW."
                     )
                     files.append(os.path.join(basedir, "OpenCore_OEM", "BEEP.RAW"))
+
+            # --- Manage NXT timing ---
+            # For NXTs on non-Windows systems, we need to manually delay between bytes - still TBD why
+            if platform.system() != "Windows":
+                self.log.info("Anima NXT detected on non-Windows system. Manually managing upload speed.")
+                SLEEP_TIME = 0.000087
 
         self.log.info(f"Preparing to write file(s) to saber: {files}")
         for file in files:
@@ -529,15 +547,13 @@ class Saber_Controller:
                         end="",
                         flush=True,
                     )
-                    await asyncio.sleep(0.000087)
+                    await asyncio.sleep(SLEEP_TIME)
                     start_time = time.time()
                     while bytes:
-                        await self._ser.write_async(bytes)
-                        if platform.system() != "Windows":
-                            await asyncio.sleep(
-                                0.000087
-                            )  # serial drivers write too fast on mac and linux, have to manually force wait
-                        bytes_sent += len(bytes)
+                        self._ser.write(bytes)
+                        self._ser.flush()
+                        await asyncio.sleep(SLEEP_TIME)  # will be 0.0 if EVO
+                        bytes_sent += 1  # len(bytes)
                         bytes = binary_file.read(1)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(
