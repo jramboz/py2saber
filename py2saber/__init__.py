@@ -4,4 +4,4 @@ from .py2saber import (AnimaFileWriteException, AnimaNotReadyException,
 
 __all__ = ["py2saber"]
 
-__version__ = "0.18.4"
+__version__ = "0.18.5"
