@@ -38,7 +38,7 @@ from getch import pause_exit
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = "0.18.6"
+script_version = "0.19.0"
 script_authors = "Jason Ramboz"
 script_repo = "https://github.com/jramboz/py2saber"
 

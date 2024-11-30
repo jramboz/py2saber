@@ -9,4 +9,4 @@ from .py2saber import (
 
 __all__ = ["py2saber"]
 
-__version__ = "0.18.6"
+__version__ = "0.19.0"
