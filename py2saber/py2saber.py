@@ -975,5 +975,10 @@ async def main_func():
             sys.exit(exit_code)
 
 
+def main():
+    '''Entry point for command-line script.'''
+    asyncio.run(main_func)
+
+
 if __name__ == "__main__":
     asyncio.run(main_func())
