@@ -977,7 +977,7 @@ async def main_func():
 
 def main():
     '''Entry point for command-line script.'''
-    asyncio.run(main_func)
+    asyncio.run(main_func())
 
 
 if __name__ == "__main__":
