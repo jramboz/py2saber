@@ -109,7 +109,7 @@ class Saber_Controller:
 
     _CHUNK_SIZE = 128  # NXTs run into buffer problems if you try to send more than 128 bytes at a time
 
-    _FILE_DELAY = 5  # Number of seconds to pause between file uploads
+    FILE_DELAY = 5  # Number of seconds to pause between file uploads
 
     def __init__(
         self, port: str = None, gui: bool = False, loglevel: int = logging.ERROR
@@ -396,7 +396,7 @@ class Saber_Controller:
             while c < b"\x41":  # any ascii character before 'A'
                 if self.gui:
                     i += 1
-                    progress_callback.emit(i * 100 // 140)
+                    progress_callback(i * 100 // 140)
                 print(c.decode(), end="", flush=True)
                 c = await self._ser.read_async(1)
             # manually read the next line using the serial connection and combine it with the last char read.
@@ -407,7 +407,7 @@ class Saber_Controller:
             response = await self.read_line()  # b'OK, Serial Flash Erased.\n'
             response = await self.read_line()  # b'\n'
             if self.gui:
-                progress_callback.emit(100)
+                progress_callback(100)
             self._ser.timeout = self._SERIAL_SETTINGS["timeout"]
         else:
             raise AnimaNotReadyException
@@ -509,7 +509,7 @@ class Saber_Controller:
             # For NXTs on non-Windows systems, we need to manually delay between bytes - still TBD why
             if platform.system() != "Windows":
                 self.log.info("Anima NXT detected on non-Windows system. Manually managing upload speed.")
-                SLEEP_TIME = 0.000087
+                SLEEP_TIME = 0.012 #0.000087
 
         self.log.info(f"Preparing to write file(s) to saber: {files}")
         for file in files:
@@ -541,7 +541,10 @@ class Saber_Controller:
                     await self.send_command(cmd)
                     response = await self.read_line()
                     self.log.debug(f"Beginning byte stream for file {fname}")
-                    bytes = binary_file.read(1)
+                    # Writing in chunks works better with the manual timing code for NXTs (instead of writing one byte
+                    # at a time). I think the very small time between bytes when sending a single byte was causing 
+                    # some rounding issues. 
+                    bytes = binary_file.read(self._CHUNK_SIZE)
                     print(
                         f"{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: 0.00B/s",  # noqa: E501
                         end="",
@@ -553,8 +556,8 @@ class Saber_Controller:
                         self._ser.write(bytes)
                         self._ser.flush()
                         await asyncio.sleep(SLEEP_TIME)  # will be 0.0 if EVO
-                        bytes_sent += 1  # len(bytes)
-                        bytes = binary_file.read(1)
+                        bytes_sent += len(bytes)
+                        bytes = binary_file.read(self._CHUNK_SIZE)
                         if bytes_sent % report_every_n_bytes == 0:
                             print(
                                 f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s   ",  # noqa: E501
@@ -562,12 +565,12 @@ class Saber_Controller:
                                 flush=True,
                             )
                             if self.gui:
-                                progress_callback.emit(bytes_sent)
+                                progress_callback(bytes_sent)
                     print(
                         f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           "  # noqa: E501
                     )
                     if self.gui:
-                        progress_callback.emit(bytes_sent)
+                        progress_callback(bytes_sent)
                 else:
                     raise AnimaNotReadyException
 
@@ -578,13 +581,13 @@ class Saber_Controller:
                 )
 
             self.log.info(f"Successfully wrote file to saber: {file}")
-            self.log.info(f"Pausing {self._FILE_DELAY} seconds between file uploads.")
+            self.log.info(f"Pausing {self.FILE_DELAY} seconds between file uploads.")
             print(
-                f"Pausing {self._FILE_DELAY} seconds between file uploads",
+                f"Pausing {self.FILE_DELAY} seconds between file uploads",
                 end="",
                 flush=True,
             )
-            i = self._FILE_DELAY
+            i = self.FILE_DELAY
             while i > 0:
                 if i < 1:
                     await asyncio.sleep(i)
