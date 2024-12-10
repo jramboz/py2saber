@@ -506,10 +506,11 @@ class Saber_Controller:
                     files.append(os.path.join(basedir, "OpenCore_OEM", "BEEP.RAW"))
 
             # --- Manage NXT timing ---
-            # For NXTs on non-Windows systems, we need to manually delay between bytes - still TBD why
-            if platform.system() != "Windows":
-                self.log.info("Anima NXT detected on non-Windows system. Manually managing upload speed.")
-                SLEEP_TIME = 0.012 #0.000087
+            # For NXTs ~~on non-Windows systems~~, we need to manually delay between bytes - still TBD why
+            # Update: seems to happen on Windows, too.
+            #if platform.system() != "Windows":
+            self.log.info("Anima NXT detected. Manually managing upload speed.")
+            SLEEP_TIME = 0.012 #0.000087
 
         self.log.info(f"Preparing to write file(s) to saber: {files}")
         for file in files:
