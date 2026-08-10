@@ -447,23 +447,144 @@ class Saber_Controller:
         self.log.info(f"Total space: {total_space} bytes")
         return total_space
 
-    async def read_config_ini(self) -> str:
-        """Read the config.ini file from saber and return as a string"""
-        self.log.info("Reading config.ini from saber")
-        cmd = b"RD?config.ini\n"
-        await self.send_command(cmd)
-        # Anima doesn't seem to properly send STX/ETX bytes. Instead just sends '2' and '3'
-        config = b""
-        while not config.endswith(b"}3"):
-            # read one byte at a time, since last line isn't terminated with \n
-            config += await self._ser.read_async()
+    async def read_config_ini(self, timeout: float = 10.0, max_size: int = 128 * 1024) -> str:
+        """Read config.ini and return its root dictionary as a string.
 
-        self.log.debug(f"Raw config string: {config}")
-        # check for FW debug output
-        if config.startswith(b'#'):
-            config = b"\n".join(x for x in config.splitlines() if not x.startswith(b'#'))
-        # slice off first and last char ('2' and '3')
-        return config.decode().strip()[1:-1]
+        The end of the configuration is detected by balancing braces instead of
+        relying on the firmware-specific ASCII '3' or ETX terminator.
+        """
+        self.log.info("Reading config.ini from saber")
+        await self.send_command(b"RD?config.ini")
+
+        raw_response = bytearray()
+        config_data = bytearray()
+
+        started = False
+        depth = 0
+
+        quote = None
+        escaped = False
+
+        in_debug_line = False
+        at_line_start = True
+
+        async def read_dictionary() -> str:
+            nonlocal started
+            nonlocal depth
+            nonlocal quote
+            nonlocal escaped
+            nonlocal in_debug_line
+            nonlocal at_line_start
+
+            while True:
+                # Read one byte at a time because config.ini is not necessarily
+                # terminated by a newline.
+                chunk = await self._ser.read_async(1)
+
+                if not chunk:
+                    raise asyncio.TimeoutError("Serial timeout while reading config.ini.")
+
+                byte = chunk[0]
+                raw_response.append(byte)
+
+                if len(raw_response) > max_size:
+                    raise InvalidSaberResponseException(f"config.ini response exceeded {max_size} bytes.")
+
+                # Ignore firmware diagnostic lines beginning with '#'.
+                if in_debug_line:
+                    if byte in (0x0A, 0x0D):
+                        in_debug_line = False
+                        at_line_start = True
+                    continue
+
+                # Ignore framing bytes and other text until the root dictionary
+                # begins. This accepts ASCII '2', STX, or no opening marker.
+                if not started:
+                    if byte == ord("#"):
+                        in_debug_line = True
+                        continue
+
+                    if byte == ord("{"):
+                        started = True
+                        depth = 1
+                        config_data.append(byte)
+                        at_line_start = False
+                        continue
+
+                    at_line_start = byte in (0x0A, 0x0D)
+                    continue
+
+                # Debug output may also appear between lines of the configuration.
+                if (
+                        quote is None
+                        and at_line_start
+                        and byte == ord("#")
+                ):
+                    in_debug_line = True
+                    continue
+
+                config_data.append(byte)
+
+                # Braces inside quoted strings must not affect the nesting depth.
+                if quote is not None:
+                    if escaped:
+                        escaped = False
+                    elif byte == ord("\\"):
+                        escaped = True
+                    elif byte == quote:
+                        quote = None
+
+                elif byte in (ord("'"), ord('"')):
+                    quote = byte
+
+                elif byte == ord("{"):
+                    depth += 1
+
+                elif byte == ord("}"):
+                    depth -= 1
+
+                    if depth == 0:
+                        try:
+                            return config_data.decode("utf-8")
+                        except UnicodeDecodeError as exc:
+                            raise InvalidSaberResponseException(
+                                "config.ini is not valid UTF-8."
+                            ) from exc
+
+                at_line_start = byte in (0x0A, 0x0D)
+
+        try:
+            config = await asyncio.wait_for(read_dictionary(), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.log.error("Timed out reading config.ini. Last bytes received: %r", bytes(raw_response[-128:]))
+            raise
+
+        self.log.debug("Raw config.ini response: %r", bytes(raw_response))
+
+        # The parser finishes as soon as the root dictionary closes. Discard any
+        # ASCII '3', ETX, newline or diagnostic data that arrived immediately
+        # afterwards so it cannot contaminate the response to the next command.
+        trailer = bytearray()
+        drain_started = time.monotonic()
+        last_data_received = drain_started
+
+        while time.monotonic() - drain_started < 0.25:
+            waiting = self._ser.in_waiting
+
+            if waiting:
+                trailer.extend(self._ser.read(waiting))
+                last_data_received = time.monotonic()
+                continue
+
+            if time.monotonic() - last_data_received >= 0.05:
+                break
+
+            await asyncio.sleep(0.01)
+
+        if trailer:
+            self.log.debug("Discarded config.ini trailer: %r", bytes(trailer))
+
+        return config
 
     async def anima_is_NXT(self) -> bool:
         """Returns True if the attached saber is an NXT, False if not."""
