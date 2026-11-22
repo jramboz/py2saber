@@ -4,3 +4,4 @@ __pycache__
 .DS_Store
 py2saber.egg-info
 .idea
+.vscode
