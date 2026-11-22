@@ -21,7 +21,7 @@ dependencies = [
     "py-getch",
     "aioserial"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 [project.urls]
 Homepage = "https://github.com/jramboz/py2saber"
