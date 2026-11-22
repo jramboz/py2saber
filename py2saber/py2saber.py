@@ -35,6 +35,7 @@ import time
 import aioserial
 import serial.tools.list_ports as lp
 from getch import pause_exit
+from collections.abc import Callable
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
@@ -49,7 +50,7 @@ class DocDefaultException(Exception):
 
     def __init__(self, msg=None, *args, **kwargs):
         if msg:
-            msg = self.__doc__ + "\n" + msg
+            msg = self.__doc__ or "" + "\n" + msg
         super().__init__(msg or self.__doc__, *args, **kwargs)
 
 
@@ -112,7 +113,7 @@ class Saber_Controller:
     FILE_DELAY = 5  # Number of seconds to pause between file uploads
 
     def __init__(
-        self, port: str = None, gui: bool = False, loglevel: int = logging.ERROR
+        self, port: str | None = None, gui: bool = False, loglevel: int = logging.ERROR
     ) -> None:
         self.log = logging.getLogger("Saber_Controller")
         self.log.setLevel(loglevel)
@@ -122,7 +123,7 @@ class Saber_Controller:
 
     @staticmethod
     async def create(
-        port: str = None, gui: bool = False, loglevel: int = logging.ERROR
+        port: str | None = None, gui: bool = False, loglevel: int = logging.ERROR
     ) -> "Saber_Controller":
         """Create and initialize a Saber_Controller"""
         self = Saber_Controller(port, gui, loglevel)
@@ -370,7 +371,7 @@ class Saber_Controller:
         else:
             raise AnimaNotReadyException
 
-    async def list_files_on_saber(self) -> dict[str:int]:
+    async def list_files_on_saber(self) -> dict[str, int]:
         """Returns a dictionary containing the files on the saber.
         Key is the filename, value is the file size in bytes."""
         file_dict = {}
@@ -381,7 +382,7 @@ class Saber_Controller:
             file_dict[match[0]] = int(match[1])
         return file_dict
 
-    async def erase_all_files(self, progress_callback: callable = None) -> None:
+    async def erase_all_files(self, progress_callback: Callable | None = None) -> None:
         """Erases all files on the anima. USE CAREFULLY."""
         if await self.saber_is_ready():
             self.log.info("Erasing all files on saber. This may take several minutes.")
@@ -396,7 +397,7 @@ class Saber_Controller:
             i = 0
             c = await self._ser.read_async(1)
             while c < b"\x41":  # any ascii character before 'A'
-                if self.gui:
+                if self.gui and progress_callback:
                     i += 1
                     progress_callback(i * 100 // 140)
                 print(c.decode(), end="", flush=True)
@@ -408,7 +409,7 @@ class Saber_Controller:
             )  # b'OK, Now re-load your sound files.\n'
             response = await self.read_line()  # b'OK, Serial Flash Erased.\n'
             response = await self.read_line()  # b'\n'
-            if self.gui:
+            if self.gui and progress_callback:
                 progress_callback(100)
             self._ser.timeout = self._SERIAL_SETTINGS["timeout"]
         else:
@@ -599,7 +600,7 @@ class Saber_Controller:
     async def write_files_to_saber(
         self,
         files: list[str],
-        progress_callback: callable = None,
+        progress_callback: Callable | None = None,
         add_beep: bool = True,
     ) -> None:
         """Write file(s) to saber. Expects a list of file names.
@@ -691,12 +692,12 @@ class Saber_Controller:
                                 end="",
                                 flush=True,
                             )
-                            if self.gui:
+                            if self.gui and progress_callback:
                                 progress_callback(bytes_sent)
                     print(
                         f"\r{fname} - Data sent: {getHumanReadableSize(bytes_sent)} - Data remaining: {getHumanReadableSize(file_size - bytes_sent)} - Speed: {getHumanReadableSize(bytes_sent/(time.time()-start_time))}/s           "  # noqa: E501
                     )
-                    if self.gui:
+                    if self.gui and progress_callback:
                         progress_callback(bytes_sent)
                 else:
                     raise AnimaNotReadyException
@@ -1094,7 +1095,7 @@ async def main_func():
                 error_handler(e)
                 exit_code = 1
 
-    except Exception as e:
+    except DocDefaultException as e:
         error_handler(e)
         exit_code = 1
 
