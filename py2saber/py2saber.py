@@ -39,7 +39,7 @@ from collections.abc import Callable
 
 basedir = os.path.dirname(os.path.realpath(__file__))
 
-script_version = "0.19.5"
+script_version = "0.19.6"
 script_authors = "Jason Ramboz"
 script_repo = "https://github.com/jramboz/py2saber"
 
